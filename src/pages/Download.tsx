@@ -9,7 +9,7 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { ResultCard } from "@/components/ui/result-card";
 import { useAppStore } from "@/store/useAppStore";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import axiosInstance from "@/lib/apiConfig";
 
 const platforms = [
   { value: "youtube", label: "YouTube", icon: Play, color: "from-red-500 to-red-600" },
@@ -51,14 +51,13 @@ const Download = () => {
         if (currentProgress >= 90) {
           clearInterval(progressInterval);
         }
-      }, 200);
-
+      }, 500);
       // Replace with actual API call
-      const response = await axios.post('/api/download', {
+      const response = await axiosInstance.post('/api/download', {
         url: download.url,
         platform: download.platform
       });
-
+      console.log("Response data ", response.data);
       clearInterval(progressInterval);
       setDownloadProgress(100);
       setDownloadResult(response.data);

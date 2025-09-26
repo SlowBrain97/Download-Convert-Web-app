@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { RotateCcw, Video, Music, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { FileUploader } from "@/components/ui/file-uploader";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { ResultCard } from "@/components/ui/result-card";
 import { useAppStore } from "@/store/useAppStore";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
+import axiosInstance from "@/lib/apiConfig";
+import { WarningProvider } from "@radix-ui/react-dialog";
 
 const formats = {
   video: [
@@ -32,7 +33,8 @@ const formats = {
 
 const MediaConvert = () => {
   const { 
-    conversion, 
+    conversion,
+    setConversionTaskId,
     setConversionFile,
     setInputFormat,
     setOutputFormat,
@@ -80,36 +82,17 @@ const MediaConvert = () => {
     try {
       setConversionLoading(true);
       setConversionError(null);
-      setConversionProgress(0);
-
-      // Simulate progress
-      let currentProgress = 0;
-      const progressInterval = setInterval(() => {
-        currentProgress = Math.min(currentProgress + Math.random() * 10, 90);
-        setConversionProgress(currentProgress);
-        if (currentProgress >= 90) {
-          clearInterval(progressInterval);
-        }
-      }, 300);
-
-      // Replace with actual API call
+      setConversionProgress(5);
+     
       const formData = new FormData();
       formData.append('file', conversion.file);
       formData.append('outputFormat', conversion.outputFormat);
       formData.append('inputFormat', conversion.inputFormat);
 
-      const response = await axios.post('/api/convert/media', formData, {
+      const response = await axiosInstance.post('/api/media/convert', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-
-      clearInterval(progressInterval);
-      setConversionProgress(100);
-      setConversionResult(response.data);
-      
-      toast({
-        title: "Conversion Complete!",
-        description: "Your file has been converted successfully.",
-      });
+      setConversionTaskId(response.data.taskId);
       
     } catch (error) {
       setConversionError(error instanceof Error ? error.message : "Conversion failed");
@@ -119,17 +102,62 @@ const MediaConvert = () => {
         variant: "destructive"
       });
     } finally {
-      setConversionLoading(false);
     }
   };
+  
 
   const handleReset = () => {
     resetConversion();
     setMediaType("video");
   };
 
-  const availableFormats = formats[mediaType];
+  let availableFormatsVideo = null;
+  let availableFormatsAudio = null;
+  if (mediaType == "video"){
+    availableFormatsVideo = formats["video"];
+    availableFormatsAudio = formats["audio"];
+  }
+  else{
+    availableFormatsAudio = formats["audio"];
+  }
 
+  useEffect(()=>{
+    if (!conversion.taskId) return;
+    const eventSource = new EventSource(`${axiosInstance.defaults.baseURL}/api/progress/${conversion.taskId}`);
+    eventSource.addEventListener('progress', (event) => {
+      const data = JSON.parse(event.data);
+      console.log(data);
+      setConversionProgress(data.progress);
+    })
+    eventSource.addEventListener('complete', (event) => {
+      const data = JSON.parse(event.data);
+      setConversionProgress(100);
+      setConversionResult(data.result);
+      toast({
+        title: "Conversion Complete!",
+        description: "Your file has been converted successfully.",
+      });
+      eventSource.close();
+      
+    })
+    eventSource.addEventListener('error', (event) => {
+      const data = JSON.parse(event.data);
+      console.log(data);
+      setConversionError(data.error);
+      eventSource.close();
+      toast({
+        title: "Conversion Failed", 
+        description: "Please check your file and try again.",
+        variant: "destructive"
+      });
+    })
+
+    return ()=> eventSource.close();
+  },[conversion.taskId])
+
+  useEffect(()=>{
+    return () => resetConversion();
+  },[])
   return (
     <div className="min-h-screen py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -199,7 +227,7 @@ const MediaConvert = () => {
               <h2 className="text-2xl font-semibold text-foreground">Upload File</h2>
               <FileUploader
                 accept={mediaType === "video" ? "video/*" : "audio/*"}
-                maxSize={100 * 1024 * 1024} // 100MB
+                maxSize={300 * 1024 * 1024} 
                 onFileSelect={handleFileSelect}
                 onFileRemove={() => setConversionFile(null)}
                 selectedFile={conversion.file}
@@ -237,11 +265,24 @@ const MediaConvert = () => {
                           <SelectValue placeholder={`Select ${mediaType} format`} />
                         </SelectTrigger>
                         <SelectContent>
-                          {availableFormats.map((format) => (
-                            <SelectItem key={format.value} value={format.value}>
-                              {format.label}
-                            </SelectItem>
-                          ))}
+                            {availableFormatsVideo && <SelectGroup>
+                                <SelectLabel>Video</SelectLabel>
+                              {availableFormatsVideo.map((format)=>(
+                                <SelectItem key={format.value} value={format.value}>
+                                  {format.label}
+                                </SelectItem>
+                              ))}
+                          </SelectGroup>
+                            }
+                            {availableFormatsAudio && <SelectGroup>
+                            <SelectLabel>Audio</SelectLabel>
+                              {availableFormatsAudio.map((format)=>(
+                                <SelectItem key={format.value} value={format.value}>
+                                  {format.label}
+                                </SelectItem>
+                              ))}
+                          </SelectGroup>}
+                          
                         </SelectContent>
                       </Select>
                     </div>
@@ -258,6 +299,12 @@ const MediaConvert = () => {
                   )}
 
                   <div className="flex gap-4">
+                    {conversion.result ? <Button
+                      variant="link"
+                      size="lg"
+                    >
+                      {conversion.isLoading ? "Converting..." : "Convert File"}
+                    </Button> : 
                     <Button
                       onClick={handleConvert}
                       disabled={conversion.isLoading || !conversion.outputFormat}
@@ -265,7 +312,8 @@ const MediaConvert = () => {
                       size="lg"
                     >
                       {conversion.isLoading ? "Converting..." : "Convert File"}
-                    </Button>
+                    </Button>}
+                    
                     
                     {(conversion.isLoading || conversion.result) && (
                       <Button
@@ -307,7 +355,7 @@ const MediaConvert = () => {
                 title="Conversion Complete!"
                 description="Your file has been converted successfully."
                 downloadUrl={conversion.result.downloadUrl}
-                downloadName={conversion.result.filename}
+                downloadName={conversion.result.fileName}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="space-y-2">
@@ -315,7 +363,7 @@ const MediaConvert = () => {
                     <p><span className="font-medium">Converted:</span> {conversion.outputFormat?.toUpperCase()}</p>
                   </div>
                   <div className="space-y-2">
-                    <p><span className="font-medium">Size:</span> {conversion.result.fileSize}</p>
+                    <p><span className="font-medium">Size:</span> {conversion.result.size}</p>
                     <p><span className="font-medium">Quality:</span> {conversion.result.quality}</p>
                   </div>
                 </div>

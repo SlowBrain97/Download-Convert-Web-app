@@ -18,7 +18,7 @@ export const ProgressBar = ({
   size = "md",
   variant = "default"
 }: ProgressBarProps) => {
-  const percentage = Math.min((value / max) * 100, 100);
+
   
   const sizeClasses = {
     sm: "h-2",
@@ -37,7 +37,7 @@ export const ProgressBar = ({
       {showPercentage && (
         <div className="flex justify-between items-center">
           <span className="text-sm font-medium text-foreground">Progress</span>
-          <span className="text-sm text-muted-foreground">{Math.round(percentage)}%</span>
+          <span className="text-sm text-muted-foreground">{value}%</span>
         </div>
       )}
       
@@ -51,7 +51,7 @@ export const ProgressBar = ({
             variantClasses[variant]
           )}
           initial={{ width: 0 }}
-          animate={{ width: `${percentage}%` }}
+          animate={{ width: `${value}%` }}
           transition={{ 
             duration: 0.5,
             ease: "easeInOut"
@@ -61,7 +61,7 @@ export const ProgressBar = ({
         <motion.div
           className="absolute inset-0 rounded-full opacity-30"
           style={{
-            background: `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) ${percentage}%, transparent ${percentage + 20}%)`
+            background: `linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) ${value}%, transparent ${value + 20}%)`
           }}
           animate={{
             x: ["-100%", "100%"]
