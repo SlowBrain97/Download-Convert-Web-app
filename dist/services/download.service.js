@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import ytdl from "@distube/ytdl-core";
+import ytdl from "ytdl-core";
 import got from 'got';
 import { tasks } from '../utils/taskManager.js';
 import { getPublicUrl, toPublicPath } from '../utils/file.js';
@@ -15,7 +15,7 @@ export async function downloadTask(taskId, url, fileType = 'video') {
             const info = await ytdl.getInfo(url);
             const title = info.videoDetails.title.replace(/[^a-z0-9_\-\.]/gi, '_');
             const ext = fileType === 'audio' ? 'mp3' : 'mp4';
-            const outName = `${title}-${Date.now()}.${ext}`;
+            const outName = `${title}.${ext}`;
             const outPath = toPublicPath(outName);
             const format = ytdl.chooseFormat(info.formats, {
                 quality: fileType === 'audio' ? 'highestaudio' : 'highestvideo',

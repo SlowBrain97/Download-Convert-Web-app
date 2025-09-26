@@ -7,8 +7,9 @@ import { errorHandler } from './middlewares/errorHandler.js';
 import routes from './routes/index.js';
 import { initCleanupScheduler } from './utils/cleanup.js';
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_BASE_URL
+app.use(cors({ origin: process.env.FRONTEND_BASE_URL || "http://localhost:3000"
 }));
+app.options('*', cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
