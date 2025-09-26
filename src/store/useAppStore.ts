@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 interface DownloadState {
+  taskId: string;
   url: string;
   platform: 'youtube' | 'tiktok' | 'instagram' | 'x';
   isLoading: boolean;
@@ -10,6 +11,7 @@ interface DownloadState {
 }
 
 interface ConversionState {
+  taskId: string;
   file: File | null;
   inputFormat: string;
   outputFormat: string;
@@ -30,6 +32,7 @@ interface OCRState {
 interface AppState {
   // Download state
   download: DownloadState;
+  setDownloadTaskId: (taskId: string) => void;
   setDownloadUrl: (url: string) => void;
   setDownloadPlatform: (platform: DownloadState['platform']) => void;
   setDownloadLoading: (loading: boolean) => void;
@@ -40,6 +43,7 @@ interface AppState {
 
   // Conversion state
   conversion: ConversionState;
+  setConversionTaskId: (taskId: string) => void;
   setConversionFile: (file: File | null) => void;
   setInputFormat: (format: string) => void;
   setOutputFormat: (format: string) => void;
@@ -60,6 +64,7 @@ interface AppState {
 }
 
 const initialDownloadState: DownloadState = {
+  taskId: '',
   url: '',
   platform: 'youtube',
   isLoading: false,
@@ -69,6 +74,7 @@ const initialDownloadState: DownloadState = {
 };
 
 const initialConversionState: ConversionState = {
+  taskId: '',
   file: null,
   inputFormat: '',
   outputFormat: '',
@@ -96,6 +102,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setDownloadResult: (result) => set((state) => ({ download: { ...state.download, result } })),
   setDownloadError: (error) => set((state) => ({ download: { ...state.download, error } })),
   resetDownload: () => set({ download: initialDownloadState }),
+  setDownloadTaskId: (taskId) => set((state) => ({ download: { ...state.download, taskId } })),
 
   // Conversion state and actions
   conversion: initialConversionState,
@@ -107,6 +114,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setConversionResult: (result) => set((state) => ({ conversion: { ...state.conversion, result } })),
   setConversionError: (error) => set((state) => ({ conversion: { ...state.conversion, error } })),
   resetConversion: () => set({ conversion: initialConversionState }),
+  setConversionTaskId: (taskId) => set((state) => ({ conversion: { ...state.conversion, taskId } })),
 
   // OCR state and actions
   ocr: initialOCRState,

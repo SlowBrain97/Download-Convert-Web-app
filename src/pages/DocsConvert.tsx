@@ -9,6 +9,8 @@ import { ResultCard } from "@/components/ui/result-card";
 import { useAppStore } from "@/store/useAppStore";
 import { useToast } from "@/hooks/use-toast";
 import axios from "axios";
+import { useEffect } from "react";
+import axiosInstance from "@/lib/apiConfig";
 
 const documentFormats = [
   { value: "pdf", label: "PDF", icon: File },
@@ -32,7 +34,8 @@ const DocsConvert = () => {
     setConversionProgress, 
     setConversionResult,
     setConversionError,
-    resetConversion
+    resetConversion,
+    setConversionTaskId
   } = useAppStore();
 
   const { toast } = useToast();
@@ -63,34 +66,17 @@ const DocsConvert = () => {
       setConversionError(null);
       setConversionProgress(0);
 
-      // Simulate progress
-      let currentProgress = 0;
-      const progressInterval = setInterval(() => {
-        currentProgress = Math.min(currentProgress + Math.random() * 12, 90);
-        setConversionProgress(currentProgress);
-        if (currentProgress >= 90) {
-          clearInterval(progressInterval);
-        }
-      }, 250);
-
       // Replace with actual API call
       const formData = new FormData();
       formData.append('file', conversion.file);
       formData.append('outputFormat', conversion.outputFormat);
       formData.append('inputFormat', conversion.inputFormat);
 
-      const response = await axios.post('/api/convert/docs', formData, {
+      const response = await axiosInstance.post('/api/docs/convert', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-
-      clearInterval(progressInterval);
-      setConversionProgress(100);
-      setConversionResult(response.data);
-      
-      toast({
-        title: "Conversion Complete!",
-        description: "Your document has been converted successfully.",
-      });
+      console.log(response.data);
+      setConversionTaskId(response.data.taskId);
       
     } catch (error) {
       setConversionError(error instanceof Error ? error.message : "Conversion failed");
@@ -107,7 +93,37 @@ const DocsConvert = () => {
   const handleReset = () => {
     resetConversion();
   };
+  useEffect(()=>{
+    if (!conversion.taskId) return;
 
+    const eventSource = new EventSource(`${axiosInstance.defaults.baseURL}/api/progress/${conversion.taskId}`);
+    eventSource.addEventListener("progress", (event) => {
+      const data = JSON.parse(event.data);
+      setConversionProgress(data.progress);
+      setConversionLoading(true);
+      eventSource.close();
+    })
+    eventSource.addEventListener("complete", (event) => {
+      const data = JSON.parse(event.data);
+      setConversionResult(data.result);
+      setConversionLoading(false);
+      eventSource.close();
+    })
+    eventSource.addEventListener("error", (event) => {
+      const response = event as MessageEvent;
+      const data = JSON.parse(response.data);
+      setConversionError(data.message);
+      eventSource.close();
+    })
+
+    return () => {
+      eventSource.removeEventListener("progress", (event) => {});
+      eventSource.removeEventListener("complete", (event) => {});
+      eventSource.removeEventListener("error", (event) => {});
+      eventSource.close();
+      resetConversion();
+    }
+  },[conversion.taskId])
   return (
     <div className="min-h-screen py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -281,7 +297,7 @@ const DocsConvert = () => {
                 title="Conversion Complete!"
                 description="Your document has been converted successfully."
                 downloadUrl={conversion.result.downloadUrl}
-                downloadName={conversion.result.filename}
+                downloadName={conversion.result.fileName}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="space-y-2">

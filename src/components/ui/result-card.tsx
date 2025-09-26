@@ -42,8 +42,8 @@ export const ResultCard = ({
   const handleDownload = () => {
     if (downloadUrl) {
       const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = downloadName || 'download';
+      link.href = `${import.meta.env.VITE_BASE_URL}${downloadUrl}`;
+      link.setAttribute('download', downloadName || 'download');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
