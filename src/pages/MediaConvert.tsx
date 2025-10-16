@@ -101,7 +101,6 @@ const MediaConvert = () => {
         description: "Please check your file and try again.",
         variant: "destructive"
       });
-    } finally {
     }
   };
   
@@ -126,7 +125,6 @@ const MediaConvert = () => {
     const eventSource = new EventSource(`${axiosInstance.defaults.baseURL}/api/progress/${conversion.taskId}`);
     eventSource.addEventListener('progress', (event) => {
       const data = JSON.parse(event.data);
-      console.log(data);
       setConversionProgress(data.progress);
     })
     eventSource.addEventListener('complete', (event) => {
@@ -141,8 +139,8 @@ const MediaConvert = () => {
       
     })
     eventSource.addEventListener('error', (event) => {
-      const data = JSON.parse(event.data);
-      console.log(data);
+      const messageEvent = event as MessageEvent;
+      const data = JSON.parse(messageEvent.data);
       setConversionError(data.error);
       eventSource.close();
       toast({
@@ -265,24 +263,25 @@ const MediaConvert = () => {
                           <SelectValue placeholder={`Select ${mediaType} format`} />
                         </SelectTrigger>
                         <SelectContent>
-                            {availableFormatsVideo && <SelectGroup>
-                                <SelectLabel>Video</SelectLabel>
-                              {availableFormatsVideo.map((format)=>(
-                                <SelectItem key={format.value} value={format.value}>
-                                  {format.label}
-                                </SelectItem>
-                              ))}
+                          <SelectGroup>
+                            <SelectLabel className="text-lg font-medium text-foreground">Video</SelectLabel>
+                            {availableFormatsVideo.map(f => (
+                              <SelectItem key={f.value} value={f.value}>
+                                {f.label}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>  
+
+                          <div className="my-1 h-px bg-border" /> {/* Divider line */}
+
+                          <SelectGroup>
+                            <SelectLabel className="text-lg font-medium text-foreground">Audio</SelectLabel>
+                            {availableFormatsAudio.map(f => (
+                              <SelectItem key={f.value} value={f.value}>
+                                {f.label}
+                              </SelectItem>
+                            ))}
                           </SelectGroup>
-                            }
-                            {availableFormatsAudio && <SelectGroup>
-                            <SelectLabel>Audio</SelectLabel>
-                              {availableFormatsAudio.map((format)=>(
-                                <SelectItem key={format.value} value={format.value}>
-                                  {format.label}
-                                </SelectItem>
-                              ))}
-                          </SelectGroup>}
-                          
                         </SelectContent>
                       </Select>
                     </div>

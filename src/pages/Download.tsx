@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Download as DownloadIcon, Play, Music, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,41 +27,32 @@ const Download = () => {
     setDownloadProgress, 
     setDownloadResult,
     setDownloadError,
-    resetDownload
+    resetDownload,
+    setDownloadTaskId
   } = useAppStore();
-
+  const [fileType,setFileType] = useState<'video'| 'audio'>();
   const { toast } = useToast();
-
-  const handleDownload = async () => {
+  
+  const handleDownload = async (type: 'video' | 'audio') => {
+    
     if (!download.url.trim()) {
       setDownloadError("Please enter a valid URL");
       return;
     }
-
+    
     try {
+      setFileType(type);
       setDownloadLoading(true);
       setDownloadError(null);
       setDownloadProgress(0);
-
-      // Simulate progress
-      let currentProgress = 0;
-      const progressInterval = setInterval(() => {
-        currentProgress = Math.min(currentProgress + Math.random() * 15, 90);
-        setDownloadProgress(currentProgress);
-        if (currentProgress >= 90) {
-          clearInterval(progressInterval);
-        }
-      }, 500);
-      // Replace with actual API call
+      
       const response = await axiosInstance.post('/api/download', {
         url: download.url,
-        platform: download.platform
+        platform: download.platform,
+        fileType: type
       });
-      console.log("Response data ", response.data);
-      clearInterval(progressInterval);
-      setDownloadProgress(100);
-      setDownloadResult(response.data);
-      
+      console.log(response.data);
+      setDownloadTaskId(response.data.taskId);
       toast({
         title: "Download Complete!",
         description: "Your video has been processed successfully.",
@@ -74,10 +65,44 @@ const Download = () => {
         description: "Please check your URL and try again.",
         variant: "destructive"
       });
-    } finally {
-      setDownloadLoading(false);
     }
   };
+
+    useEffect(()=>{
+      if (!download.taskId) return;
+      const eventSource = new EventSource(`${axiosInstance.defaults.baseURL}/api/progress/${download.taskId}`);
+      eventSource.addEventListener('progress', (event) => {
+        const data = JSON.parse(event.data);
+        setDownloadProgress(data.progress);
+      })
+      eventSource.addEventListener('complete', (event) => {
+        const data = JSON.parse(event.data);
+        setDownloadProgress(100);
+        setDownloadResult(data.result);
+        setDownloadLoading(false);
+        toast({
+          title: "Download Complete!",
+          description: "Your file has been downloaded successfully.",
+        });
+        eventSource.close();
+        
+      })
+      eventSource.addEventListener('error', (event) => {
+        const messageEvent = event as MessageEvent;
+        const data = JSON.parse(messageEvent.data);
+        setDownloadError(data.error);
+        setDownloadLoading(false);
+        eventSource.close();
+        toast({
+          title: "Download Failed", 
+          description: "Please check your url and try again.",
+          variant: "destructive"
+        });
+      })
+  
+      return ()=> eventSource.close();
+    },[download.taskId])
+
 
   const handleReset = () => {
     resetDownload();
@@ -164,14 +189,21 @@ const Download = () => {
 
                 <div className="flex gap-4">
                   <Button
-                    onClick={handleDownload}
+                    onClick={() => handleDownload('video')}
                     disabled={download.isLoading || !download.url.trim()}
                     variant="accent"
                     size="lg"
                   >
                     {download.isLoading ? "Processing..." : "Download Video"}
                   </Button>
-                  
+                  <Button
+                    onClick={() => handleDownload('audio')}
+                    disabled={download.isLoading || !download.url.trim()}
+                    variant="accent"
+                    size="lg"
+                  >
+                    {download.isLoading ? "Processing..." : "Download Audio"}
+                  </Button>
                   {(download.isLoading || download.result) && (
                     <Button
                       onClick={handleReset}
@@ -194,8 +226,8 @@ const Download = () => {
             >
               <Card className="p-8 bg-gradient-glass backdrop-blur-sm border-border/50">
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-foreground">Processing Video...</h3>
-                  <ProgressBar value={download.progress} />
+                  <h3 className="text-xl font-semibold text-foreground">Processing {fileType}...</h3>
+                  <ProgressBar value={download?.progress || 0} />
                 </div>
               </Card>
             </motion.div>
