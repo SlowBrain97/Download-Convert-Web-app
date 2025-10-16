@@ -56,14 +56,14 @@ RUN mkdir -p public/downloads tmp && \
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=5000
+ENV PORT=${PORT}
 
 # Expose port (Render uses PORT env variable)
-EXPOSE 5000
+EXPOSE ${PORT}
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD node -e "require('http').get('http://localhost:${PORT}/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start application using npm start script
 CMD ["npm", "start"]

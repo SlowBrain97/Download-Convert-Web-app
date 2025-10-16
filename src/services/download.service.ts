@@ -47,6 +47,7 @@ export async function downloadTask(
           : 'bestvideo+bestaudio[ext=m4a]/best', 
           mergeOutputFormat: 'mp4',
           ffmpegLocation: ffmpegPath,
+          bin: '/usr/local/bin/yt-dlp'
       } as any
     );
 
