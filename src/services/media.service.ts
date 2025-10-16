@@ -5,6 +5,7 @@ import ffmpegStatic from 'ffmpeg-static';
 import { tasks } from '../utils/taskManager.js';
 import { getPublicUrl, toPublicPath } from '../utils/file.js';
 import { logger } from '../utils/logger.js';
+import {spawn} from 'node:child_process';
 
 if (ffmpegStatic) {
   ffmpeg.setFfmpegPath(ffmpegStatic as unknown as string);
@@ -20,14 +21,29 @@ export async function convertMediaTask(taskId: string, inputPath: string, output
 
     await new Promise<void>((resolve, reject) => {
       let lastPercent = 0;
+      const child_process = spawn(ffmpegStatic as unknown as string, [
+        '-i', inputPath,
+        '-c:v', 'libx264',
+        '-c:a', 'aac',
+        outPath
+      ]);
+      child_process.stdout.on('data', (data: any) => {
+        console.log(data.toString());
+      });
+      child_process.stderr.on('data', (data: any) => {
+        console.error(data.toString());
+      });
+      child_process.on('close', () => {
+        resolve();
+      });
       ffmpeg(inputPath)
         .on('start', () => {
           tasks.update(taskId, { message: 'ffmpeg started', progress: 10 });
         })
         .on('progress', (p: any) => {
           console.log(p);
-          const pct = Math.min(95, Math.max(10, Math.round(p.percent || 0)*100));
-          if (Math.abs(pct - lastPercent) >= 5) {
+          const pct = Math.min(95, Math.max(10, Math.round(p.percent || 0)));
+          if (Math.abs(pct - lastPercent) >= 1) {
             lastPercent = pct;
             tasks.update(taskId, { progress: pct, message: `processing ${pct}%` });
           }

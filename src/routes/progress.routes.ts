@@ -6,7 +6,6 @@ export const progressRouter = Router();
 
 progressRouter.get('/:taskId', (req: Request, res: Response) => {
   const { taskId } = req.params;
-  console.log("sse running", taskId);
   const task = tasks.getTask(taskId);
   if (!task) {
     return res.status(404).json({ error: true, message: 'Task not found' });

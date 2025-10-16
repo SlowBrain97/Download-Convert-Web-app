@@ -1,49 +1,119 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import ytdl from "ytdl-core";
 import got from 'got';
 import { tasks } from '../utils/taskManager.js';
-import { getPublicUrl, toPublicPath } from '../utils/file.js';
+import { getPublicUrl, toPublicPath, ensureTempDir } from '../utils/file.js';
 import { logger } from '../utils/logger.js';
-
+import youtubedl from 'youtube-dl-exec';
+import { existsSync } from 'fs';
+import ffmpegPath from 'ffmpeg-static';
 function isYouTube(url: string) {
   return /(?:youtube\.com|youtu\.be)\//i.test(url);
 }
 
-export async function downloadTask(taskId: string, url: string, fileType: 'video' | 'audio' = 'video') {
+export async function downloadTask(
+  taskId: string,
+  url: string,
+  fileType: 'video' | 'audio' = 'video'
+) {
   try {
-    tasks.update(taskId, { status: 'processing', message: 'Starting download', progress: 5 });
+    // ✅ Đảm bảo thư mục public tồn tại trước khi download
+    ensureTempDir();
 
+    tasks.update(taskId, { status: 'processing', message: 'Starting download', progress: 0});
+
+    // -------------------- YouTube download --------------------
     if (isYouTube(url)) {
-      const info = await ytdl.getInfo(url);
-      const title = info.videoDetails.title.replace(/[^a-z0-9_\-\.]/gi, '_');
+      const titleSafe = `download-${Date.now()}`;
       const ext = fileType === 'audio' ? 'mp3' : 'mp4';
-      const outName = `${title}.${ext}`;
-      const outPath = toPublicPath(outName);
+      const outName = `${titleSafe}.${ext}`;
+      
+      // ✅ FIX: Dùng path.resolve() để lấy đường dẫn đầy đủ
+      const outPath = path.resolve(toPublicPath(outName));
+      const outDir = path.dirname(outPath);
 
-      const format = ytdl.chooseFormat(info.formats, {
-        quality: fileType === 'audio' ? 'highestaudio' : 'highestvideo',
-        filter: fileType === 'audio' ? 'audioonly' : 'videoandaudio',
+      // ✅ Tạo thư mục nếu chưa tồn tại
+      if (!fs.existsSync(outDir)) {
+        fs.mkdirSync(outDir, { recursive: true });
+      }
+
+      console.log(`📁 Output directory: ${outDir}`);
+      console.log(`📄 Output path: ${outPath}`);
+
+      const subprocess = youtubedl.exec(url, {
+        output: outPath,
+        format: fileType === 'audio' 
+          ? 'bestaudio' 
+          : 'bestvideo+bestaudio[ext=m4a]/best', 
+          mergeOutputFormat: 'mp4',
+          ffmpegLocation: ffmpegPath,
+      } as any
+    );
+
+      subprocess.stdout?.on('data', (chunk: Buffer) => {
+        const line = chunk.toString();
+        const match = line.match(/(\d{1,3}\.\d)%/);
+        if (match) {
+          const pct = Math.min(95, Math.max(0, Math.floor(parseFloat(match[1]))));
+          tasks.update(taskId, { progress: pct, message: `downloading ${pct}%` });
+          console.log(`⏳ Progress: ${pct}%`);
+        }
+      });
+
+      subprocess.stderr?.on('data', (chunk: Buffer) => {
+        console.log(`[yt-dlp stderr]: ${chunk.toString()}`);
       });
 
       await new Promise<void>((resolve, reject) => {
-        const total = Number(format.contentLength || 0);
-        let downloaded = 0;
-        const read = ytdl.downloadFromInfo(info, { format });
-        const write = fs.createWriteStream(outPath);
+        subprocess.on('error', reject);
+        subprocess.on('close', async (code) => {
+          console.log(`[yt-dlp] Process closed with code: ${code}`);
+          
+          if (code === 0) {
+            // ✅ Chờ file xuất hiện thực sự
+            const maxRetries = 10;
+            let retries = 0;
 
-        read.on('progress', (_chunkLen, downloadedBytes, totalBytes) => {
-          downloaded = downloadedBytes;
-          const t = total || totalBytes || 0;
-          if (t > 0) {
-            const pct = Math.min(95, Math.max(10, Math.floor((downloaded / t) * 100)));
-            tasks.update(taskId, { progress: pct, message: `downloading ${pct}%` });
+            while (retries < maxRetries && !existsSync(outPath)) {
+              await new Promise(r => setTimeout(r, 300));
+              retries++;
+              console.log(`⏳ Waiting for file... (${retries}/${maxRetries})`);
+            }
+
+            if (!existsSync(outPath)) {
+              return reject(
+                new Error(`ENOENT: File not found after waiting: ${outPath}`)
+              );
+            }
+
+            // ✅ Kiểm tra file chi tiết
+            const stats = fs.statSync(outPath);
+            console.log(`📊 File stats:`);
+            console.log(`   - Path: ${outPath}`);
+            console.log(`   - Size: ${stats.size} bytes`);
+            console.log(`   - Modified: ${new Date(stats.mtime).toISOString()}`);
+            
+            // ✅ Kiểm tra magic bytes (file signature)
+            const buffer = Buffer.alloc(12);
+            const fd = fs.openSync(outPath, 'r');
+            fs.readSync(fd, buffer, 0, 12, 0);
+            fs.closeSync(fd);
+            
+            const hexSignature = buffer.toString('hex').substring(0, 16);
+            const isValidMp4 = hexSignature.includes('6674797066747970'); // 'ftypftyp'
+            
+            console.log(`🔍 File signature (hex): ${hexSignature}`);
+            console.log(`✅ Valid MP4?: ${isValidMp4 ? 'YES' : 'NO - Might be corrupted'}`);
+
+            if (stats.size < 1000) {
+              console.warn(`⚠️  File very small (${stats.size} bytes) - might be incomplete`);
+            }
+
+            resolve();
+          } else {
+            reject(new Error(`Download failed with code ${code}`));
           }
         });
-        read.on('error', reject);
-        write.on('error', reject);
-        write.on('finish', resolve);
-        read.pipe(write);
       });
 
       const stat = await fs.promises.stat(outPath);
@@ -56,22 +126,31 @@ export async function downloadTask(taskId: string, url: string, fileType: 'video
       return;
     }
 
-    // Fallback: direct HTTP GET download if URL is a direct media file
+    // -------------------- Direct HTTP download --------------------
     const outName = `download-${Date.now()}`;
     const extMatch = url.match(/\.([a-z0-9]{2,5})(?:$|[?#])/i);
-    const ext = extMatch ? extMatch[1] : (fileType === 'audio' ? 'mp3' : 'mp4');
-    const finalName = `${outName}.${ext}`;
-    const outPath = toPublicPath(finalName);
+    const extHttp = extMatch ? extMatch[1] : (fileType === 'audio' ? 'mp3' : 'mp4');
+    const finalName = `${outName}.${extHttp}`;
+    
+    // ✅ FIX: Dùng path.resolve() để lấy đường dẫn đầy đủ
+    const outPath = path.resolve(toPublicPath(finalName));
+    const outDir = path.dirname(outPath);
+
+    if (!fs.existsSync(outDir)) {
+      fs.mkdirSync(outDir, { recursive: true });
+    }
 
     await new Promise<void>((resolve, reject) => {
       const stream = got.stream(url);
       const write = fs.createWriteStream(outPath);
+
       stream.on('downloadProgress', (p: any) => {
         if (p.total) {
-          const pct = Math.min(95, Math.max(10, Math.floor((p.transferred / p.total) * 100)));
+          const pct = Math.min(95, Math.max(0, Math.floor((p.transferred / p.total) * 100)));
           tasks.update(taskId, { progress: pct, message: `downloading ${pct}%` });
         }
       });
+
       stream.on('error', reject);
       write.on('error', reject);
       write.on('finish', resolve);
@@ -90,5 +169,3 @@ export async function downloadTask(taskId: string, url: string, fileType: 'video
     tasks.error(taskId, err?.message || 'Download failed');
   }
 }
-
-

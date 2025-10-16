@@ -27,7 +27,7 @@ function removeOlderThan(dir: string, maxAgeMs: number) {
 export function initCleanupScheduler() {
   const temp = tempDir();
   const pub = publicDir();
-  const MAX_AGE_MS = Number(process.env.FILE_MAX_AGE_MS || 1000 * 60 * 60 * 6); // 6 hours default
+  const MAX_AGE_MS = Number(process.env.FILE_MAX_AGE_MS || 1000 * 60 * 5); // 6 hours default
   const INTERVAL_MS = Number(process.env.CLEANUP_INTERVAL_MS || 1000 * 60 * 30); // 30 minutes
 
   // immediate cleanup on boot (non-blocking)
