@@ -7,6 +7,8 @@ import { logger } from '../utils/logger.js';
 import { existsSync } from 'fs';
 import { spawn } from 'node:child_process';
 import { ffmpegPath } from './media.service.js';
+
+
 function isYouTube(url: string) {
   return /(?:youtube\.com|youtu\.be)\//i.test(url);
 }
@@ -17,16 +19,20 @@ export async function downloadTask(
   fileType: 'video' | 'audio' = 'video'
 ) {
   try {
+
     ensureTempDir();
 
     tasks.update(taskId, { status: 'processing', message: 'Starting download', progress: 0});
+
+
     if (isYouTube(url)) {
       const titleSafe = `download-${Date.now()}`;
       const ext = fileType === 'audio' ? 'mp3' : 'mp4';
       const outName = `${titleSafe}.${ext}`;
-      
+
       const outPath = path.resolve(toPublicPath(outName));
       const outDir = path.dirname(outPath);
+
 
       if (!fs.existsSync(outDir)) {
         fs.mkdirSync(outDir, { recursive: true });
@@ -34,6 +40,7 @@ export async function downloadTask(
 
       console.log(`📁 Output directory: ${outDir}`);
       console.log(`📄 Output path: ${outPath}`);
+
 
       const subprocess = spawn("/usr/local/bin/yt-dlp", [
         url,
@@ -46,7 +53,7 @@ export async function downloadTask(
         "--merge-output-format",
         "mp4",
         "--ffmpeg-location",
-        ffmpegPath
+        ffmpegPath as any
       ]); 
       subprocess.stdout?.on('data', (chunk: Buffer) => {
         const line = chunk.toString();
@@ -68,7 +75,7 @@ export async function downloadTask(
           console.log(`[yt-dlp] Process closed with code: ${code}`);
           
           if (code === 0) {
-            // ✅ Chờ file xuất hiện thực sự
+           
             const maxRetries = 10;
             let retries = 0;
 
@@ -84,21 +91,19 @@ export async function downloadTask(
               );
             }
 
-            // ✅ Kiểm tra file chi tiết
             const stats = fs.statSync(outPath);
             console.log(`📊 File stats:`);
             console.log(`   - Path: ${outPath}`);
             console.log(`   - Size: ${stats.size} bytes`);
             console.log(`   - Modified: ${new Date(stats.mtime).toISOString()}`);
-            
-            // ✅ Kiểm tra magic bytes (file signature)
+       
             const buffer = Buffer.alloc(12);
             const fd = fs.openSync(outPath, 'r');
             fs.readSync(fd, buffer, 0, 12, 0);
             fs.closeSync(fd);
             
             const hexSignature = buffer.toString('hex').substring(0, 16);
-            const isValidMp4 = hexSignature.includes('6674797066747970'); // 'ftypftyp'
+            const isValidMp4 = hexSignature.includes('6674797066747970'); 
             
             console.log(`🔍 File signature (hex): ${hexSignature}`);
             console.log(`✅ Valid MP4?: ${isValidMp4 ? 'YES' : 'NO - Might be corrupted'}`);
@@ -124,13 +129,12 @@ export async function downloadTask(
       return;
     }
 
-    // -------------------- Direct HTTP download --------------------
+   
     const outName = `download-${Date.now()}`;
     const extMatch = url.match(/\.([a-z0-9]{2,5})(?:$|[?#])/i);
     const extHttp = extMatch ? extMatch[1] : (fileType === 'audio' ? 'mp3' : 'mp4');
     const finalName = `${outName}.${extHttp}`;
-    
-    // ✅ FIX: Dùng path.resolve() để lấy đường dẫn đầy đủ
+  
     const outPath = path.resolve(toPublicPath(finalName));
     const outDir = path.dirname(outPath);
 
