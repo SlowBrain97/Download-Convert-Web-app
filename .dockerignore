@@ -2,11 +2,6 @@
 node_modules
 npm-debug.log
 yarn-error.log
-package-lock.json
-
-# Build output
-dist
-build
 
 # Environment
 .env
@@ -29,11 +24,6 @@ build
 *.md
 !README.md
 
-# Testing
-coverage
-.nyc_output
-*.test.ts
-*.spec.ts
 
 # Temporary files
 tmp
