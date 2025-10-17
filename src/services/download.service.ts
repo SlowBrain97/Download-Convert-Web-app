@@ -7,6 +7,7 @@ import { logger } from '../utils/logger.js';
 import youtubedl from 'youtube-dl-exec';
 import { existsSync } from 'fs';
 import ffmpegPath from 'ffmpeg-static';
+import { spawn } from 'node:child_process';
 function isYouTube(url: string) {
   return /(?:youtube\.com|youtu\.be)\//i.test(url);
 }
@@ -40,17 +41,15 @@ export async function downloadTask(
       console.log(`📁 Output directory: ${outDir}`);
       console.log(`📄 Output path: ${outPath}`);
 
-      const subprocess = youtubedl.exec(url, {
-        output: outPath,
-        format: fileType === 'audio' 
-          ? 'bestaudio' 
-          : 'bestvideo+bestaudio[ext=m4a]/best', 
-          mergeOutputFormat: 'mp4',
-          ffmpegLocation: ffmpegPath,
-          bin: '/usr/local/bin/yt-dlp'
-      } as any
-    );
-
+      const subprocess = spawn('/usr/local/bin/yt-dlp', [
+  url,
+  '--output', outPath,
+  '--format', fileType === 'audio' 
+    ? 'bestaudio' 
+    : 'bestvideo+bestaudio[ext=m4a]/best',
+  '--merge-output-format', 'mp4',
+  '--ffmpeg-location', ffmpegPath as any,
+]);
       subprocess.stdout?.on('data', (chunk: Buffer) => {
         const line = chunk.toString();
         const match = line.match(/(\d{1,3}\.\d)%/);
