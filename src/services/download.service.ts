@@ -8,6 +8,7 @@ import youtubedl from 'youtube-dl-exec';
 import { existsSync } from 'fs';
 import ffmpegPath  from 'ffmpeg-static';
 import { spawn } from 'node:child_process';
+import { isProd } from './media.service.js';
 function isYouTube(url: string) {
   return /(?:youtube\.com|youtu\.be)\//i.test(url);
 }
@@ -41,8 +42,8 @@ export async function downloadTask(
       console.log(`📁 Output directory: ${outDir}`);
       console.log(`📄 Output path: ${outPath}`);
 
-      const ffmpegPathSys =
-      ["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"].find(existsSync) || ffmpegPath;
+      const ffmpegPathSys = isProd ?
+      ["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"].find(existsSync) : ffmpegPath;
 
       const subprocess = spawn("/usr/local/bin/yt-dlp", [
         url,

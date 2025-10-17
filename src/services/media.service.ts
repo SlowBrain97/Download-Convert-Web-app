@@ -8,7 +8,15 @@ import { logger } from '../utils/logger.js';
 import {spawn} from 'node:child_process';
 
 
-ffmpeg.setFfmpegPath(ffmpegStatic as unknown as string || "/usr/bin/ffmpeg");
+ export const isProd = process.env.NODE_ENV === "production";
+
+// Tự động chọn ffmpeg path
+const ffmpegPath = isProd
+  ? "/usr/bin/ffmpeg"
+  : ffmpegStatic;
+
+
+if (ffmpegPath) ffmpeg.setFfmpegPath(ffmpegPath as string);
 
 export async function convertMediaTask(taskId: string, inputPath: string, outputFormat: string) {
   try {
