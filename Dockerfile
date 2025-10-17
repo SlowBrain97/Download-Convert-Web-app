@@ -4,7 +4,7 @@ FROM node:18-bullseye AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
 COPY tsconfig.json ./
 
 
@@ -41,7 +41,7 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o 
 RUN ln -s /usr/local/bin/yt-dlp /usr/local/bin/youtube-dl
 
 # Copy package files
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
 # Install production dependencies only
 RUN npm ci --omit=dev --ignore-scripts
