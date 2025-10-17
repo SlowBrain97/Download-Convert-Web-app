@@ -1,7 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegStatic from 'ffmpeg-static';
 import { tasks } from '../utils/taskManager.js';
 import { getPublicUrl, toPublicPath } from '../utils/file.js';
 import { logger } from '../utils/logger.js';
@@ -10,16 +9,14 @@ import {spawn} from 'node:child_process';
 
 const isProd = process.env.NODE_ENV === "production";
 
-// Tự động chọn ffmpeg path
+
 export let ffmpegPath: any;
 
 if (isProd) {
-  // Dùng ffmpeg hệ thống
   ffmpegPath = fs.existsSync("/usr/bin/ffmpeg")
     ? "/usr/bin/ffmpeg"
     : "/usr/local/bin/ffmpeg";
 } else {
-  // Lazy import ffmpeg-static (chỉ local mới cần)
   try {
     const ffmpegStatic = await import("ffmpeg-static");
     ffmpegPath = ffmpegStatic.default;
@@ -45,7 +42,7 @@ export async function convertMediaTask(taskId: string, inputPath: string, output
 
     await new Promise<void>((resolve, reject) => {
       let lastPercent = 0;
-      const child_process = spawn(ffmpegStatic as unknown as string, [
+      const child_process = spawn(ffmpegPath, [
         '-i', inputPath,
         '-c:v', 'libx264',
         '-c:a', 'aac',

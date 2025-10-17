@@ -17,22 +17,17 @@ export async function downloadTask(
   fileType: 'video' | 'audio' = 'video'
 ) {
   try {
-    // ✅ Đảm bảo thư mục public tồn tại trước khi download
     ensureTempDir();
 
     tasks.update(taskId, { status: 'processing', message: 'Starting download', progress: 0});
-
-    // -------------------- YouTube download --------------------
     if (isYouTube(url)) {
       const titleSafe = `download-${Date.now()}`;
       const ext = fileType === 'audio' ? 'mp3' : 'mp4';
       const outName = `${titleSafe}.${ext}`;
       
-      // ✅ FIX: Dùng path.resolve() để lấy đường dẫn đầy đủ
       const outPath = path.resolve(toPublicPath(outName));
       const outDir = path.dirname(outPath);
 
-      // ✅ Tạo thư mục nếu chưa tồn tại
       if (!fs.existsSync(outDir)) {
         fs.mkdirSync(outDir, { recursive: true });
       }
