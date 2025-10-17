@@ -48,9 +48,6 @@ RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=builder /app/dist ./dist
 
-COPY --from=builder /app/public ./public
-
-
 RUN mkdir -p public tmp && \
     chmod -R 755 public tmp
 
