@@ -8,15 +8,32 @@ import { logger } from '../utils/logger.js';
 import {spawn} from 'node:child_process';
 
 
- export const isProd = process.env.NODE_ENV === "production";
+const isProd = process.env.NODE_ENV === "production";
 
 // Tự động chọn ffmpeg path
-const ffmpegPath = isProd
-  ? "/usr/bin/ffmpeg"
-  : ffmpegStatic;
+export let ffmpegPath: any;
 
+if (isProd) {
+  // Dùng ffmpeg hệ thống
+  ffmpegPath = fs.existsSync("/usr/bin/ffmpeg")
+    ? "/usr/bin/ffmpeg"
+    : "/usr/local/bin/ffmpeg";
+} else {
+  // Lazy import ffmpeg-static (chỉ local mới cần)
+  try {
+    const ffmpegStatic = await import("ffmpeg-static");
+    ffmpegPath = ffmpegStatic.default;
+  } catch {
+    console.warn("⚠️ ffmpeg-static not found — ensure it's installed in dev env");
+  }
+}
 
-if (ffmpegPath) ffmpeg.setFfmpegPath(ffmpegPath as string);
+if (ffmpegPath) {
+  ffmpeg.setFfmpegPath(ffmpegPath);
+  console.log("🎬 Using ffmpeg at:", ffmpegPath);
+} else {
+  console.error("❌ No ffmpeg found! Install ffmpeg or ffmpeg-static.");
+}
 
 export async function convertMediaTask(taskId: string, inputPath: string, outputFormat: string) {
   try {

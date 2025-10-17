@@ -4,11 +4,9 @@ import got from 'got';
 import { tasks } from '../utils/taskManager.js';
 import { getPublicUrl, toPublicPath, ensureTempDir } from '../utils/file.js';
 import { logger } from '../utils/logger.js';
-import youtubedl from 'youtube-dl-exec';
 import { existsSync } from 'fs';
-import ffmpegPath  from 'ffmpeg-static';
 import { spawn } from 'node:child_process';
-import { isProd } from './media.service.js';
+import { ffmpegPath } from './media.service.js';
 function isYouTube(url: string) {
   return /(?:youtube\.com|youtu\.be)\//i.test(url);
 }
@@ -42,9 +40,6 @@ export async function downloadTask(
       console.log(`📁 Output directory: ${outDir}`);
       console.log(`📄 Output path: ${outPath}`);
 
-      const ffmpegPathSys = isProd ?
-      ["/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg"].find(existsSync) : ffmpegPath;
-
       const subprocess = spawn("/usr/local/bin/yt-dlp", [
         url,
         "--output",
@@ -56,7 +51,7 @@ export async function downloadTask(
         "--merge-output-format",
         "mp4",
         "--ffmpeg-location",
-        ffmpegPathSys as any
+        ffmpegPath
       ]); 
       subprocess.stdout?.on('data', (chunk: Buffer) => {
         const line = chunk.toString();
