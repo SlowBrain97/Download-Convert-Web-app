@@ -7,9 +7,8 @@ import { getPublicUrl, toPublicPath } from '../utils/file.js';
 import { logger } from '../utils/logger.js';
 import {spawn} from 'node:child_process';
 
-if (ffmpegStatic) {
-  ffmpeg.setFfmpegPath(ffmpegStatic as unknown as string);
-}
+
+ffmpeg.setFfmpegPath(ffmpegStatic as unknown as string || "/usr/bin/ffmpeg");
 
 export async function convertMediaTask(taskId: string, inputPath: string, outputFormat: string) {
   try {
