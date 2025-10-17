@@ -48,22 +48,22 @@ RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=builder /app/dist ./dist
 
-COPY --from=builder /app/public ./public 2>/dev/null || true
+COPY --from=builder /app/public ./public
 
 
-RUN mkdir -p public/downloads tmp && \
+RUN mkdir -p public tmp && \
     chmod -R 755 public tmp
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=${PORT}
+ENV PORT=10000
 
 # Expose port (Render uses PORT env variable)
-EXPOSE ${PORT}
+EXPOSE 10000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:${PORT}/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD node -e "require('http').get('http://localhost:10000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start application using npm start script
 CMD ["npm", "start"]
