@@ -44,6 +44,9 @@ export async function downloadTask(
 
       const subprocess = spawn("/usr/local/bin/yt-dlp", [
         url,
+        '--no-warnings',
+        '--extractor-args', 'youtube:player_client=android,ios',
+        '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
         "--output",
         outPath,
         "--format",
