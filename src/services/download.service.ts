@@ -38,13 +38,21 @@ export async function downloadTask(
         fs.mkdirSync(outDir, { recursive: true });
       }
 
-      console.log(`📁 Output directory: ${outDir}`);
-      console.log(`📄 Output path: ${outPath}`);
+      const cookiesPath = '/tmp/cookies.txt';
+  
+      if (process.env.YT_COOKIES_BASE64) {
+        const cookiesContent = Buffer.from(
+          process.env.YT_COOKIES_BASE64, 
+          'base64'
+        ).toString('utf-8');
+        fs.writeFileSync(cookiesPath, cookiesContent);
+      }
 
 
       const subprocess = spawn("/usr/local/bin/yt-dlp", [
         url,
         '--no-warnings',
+        '--cookies', cookiesPath,
         '--extractor-args', 'youtube:player_client=android,ios',
         '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
         "--output",
