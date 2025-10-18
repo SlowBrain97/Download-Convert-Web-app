@@ -50,21 +50,28 @@ export async function downloadTask(
 
 
       const subprocess = spawn("/usr/local/bin/yt-dlp", [
-        url,
-        '--no-warnings',
-        '--cookies', cookiesPath,
-        '--extractor-args', 'youtube:player_client=android,ios',
-        '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
-        "--output",
-        outPath,
-        "--format",
-        fileType === "audio"
-          ? "bestaudio"
-          : "bestvideo+bestaudio[ext=m4a]/best",
-        "--merge-output-format",
-        "mp4",
-        "--ffmpeg-location",
-        ffmpegPath as any
+          url,
+          '--no-warnings',
+          '--cookies', cookiesPath,
+          '--extractor-args', 'youtube:player_client=android,ios',
+          '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
+          "--output", outPath,
+          "--format",
+          fileType === "audio"
+            ? "bestaudio[ext=m4a]/bestaudio/best"
+            : "bestvideo+bestaudio[ext=m4a]/best",
+          ...(fileType === "audio" 
+            ? [
+                '-x',
+                '--audio-format', 'mp3',
+                '--audio-quality', '0', 
+                
+              ] 
+            : []
+          ),
+          
+          "--merge-output-format", "mp4",
+          "--ffmpeg-location", ffmpegPath as any
       ]); 
       subprocess.stdout?.on('data', (chunk: Buffer) => {
         const line = chunk.toString();
