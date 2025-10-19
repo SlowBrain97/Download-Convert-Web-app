@@ -1,5 +1,5 @@
 # ---------- Build Stage ----------
-FROM node:18-bullseye AS builder
+FROM node:18-bookworm AS builder
 
 WORKDIR /app
 
@@ -17,23 +17,22 @@ RUN npm run build
 
 
 # ---------- Production Stage ----------
-FROM node:18-bullseye-slim AS production
+FROM node:18-bookworm-slim AS production
 
 WORKDIR /app
 
+# Update apt and install dependencies (Python 3.11 + ffmpeg + office)
 RUN apt-get update && \
-    apt-get install -y python3.11 python3.11-distutils python3.11-venv \
+    apt-get install -y python3 python3-pip python3-venv \
     ffmpeg libreoffice libreoffice-writer libreoffice-calc \
     curl ca-certificates && \
-    ln -sf /usr/bin/python3.11 /usr/bin/python3 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install latest pip and yt-dlp
-RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3 && \
-    pip install -U yt-dlp && \
+# Install latest yt-dlp
+RUN pip3 install --no-cache-dir -U yt-dlp && \
     ln -sf /usr/local/bin/yt-dlp /usr/local/bin/youtube-dl
 
-# Copy only what’s needed for runtime
+# Copy only what's needed for runtime
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
