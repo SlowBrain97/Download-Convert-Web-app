@@ -52,11 +52,11 @@ function runYtDlp(
     if (fileType === "audio") {
           args.push(
             '--audio-quality', '0',
-            '--format', 'bestaudio/best' 
+            '--format', 'bestaudio' 
           );
         } else {
           args.push(
-            "--format", "bestvideo+bestaudio",
+            "--format", "bestvideo+bestaudio/best",
             "--merge-output-format", "mp4",  
           );
         }

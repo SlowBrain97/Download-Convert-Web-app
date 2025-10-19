@@ -1,3 +1,4 @@
+
 # ---------- Build Stage ----------
 FROM node:18-bookworm AS builder
 
@@ -27,6 +28,9 @@ RUN apt-get update && \
     ffmpeg libreoffice libreoffice-writer libreoffice-calc \
     curl ca-certificates && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Remove EXTERNALLY-MANAGED marker (safe in Docker containers)
+RUN rm -f /usr/lib/python*/EXTERNALLY-MANAGED
 
 # Install latest yt-dlp
 RUN pip3 install --no-cache-dir -U yt-dlp && \
