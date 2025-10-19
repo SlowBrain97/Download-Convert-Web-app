@@ -49,30 +49,45 @@ export async function downloadTask(
       }
 
 
-      const subprocess = spawn("/usr/local/bin/yt-dlp", [
+      const args = [
           url,
           '--no-warnings',
+          '--list-formats',
           '--cookies', cookiesPath,
           '--extractor-args', 'youtube:player_client=android,ios',
           '--user-agent', 'com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip',
           "--output", outPath,
-          "--format",
-          fileType === "audio"
-            ? "bestaudio[ext=m4a]/bestaudio/best"
-            : "bestvideo+bestaudio[ext=m4a]/best",
-          ...(fileType === "audio" 
-            ? [
-                '-x',
-                '--audio-format', 'mp3',
-                '--audio-quality', '0', 
-                
-              ] 
-            : []
-          ),
-          
-          "--merge-output-format", "mp4",
-          "--ffmpeg-location", ffmpegPath as any
-      ]); 
+        ];
+
+        if (fileType === "audio") {
+          args.push(
+            '-x',  
+            '--audio-format', 'mp3',
+            '--audio-quality', '0',
+            '--format', 'bestaudio/best' 
+          );
+        } else {
+          args.push(
+            "--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
+            "--merge-output-format", "mp4"
+          );
+        }
+
+        args.push("--ffmpeg-location", ffmpegPath as any);
+
+      const listFormatsArgs = [
+        url,
+        '--list-formats',
+        '--cookies', cookiesPath,
+        '--extractor-args', 'youtube:player_client=android,ios',
+      ];
+
+      const listProcess = spawn("/usr/local/bin/yt-dlp", listFormatsArgs);
+      listProcess.stdout?.on('data', (chunk: Buffer) => {
+        console.log(`Available formats:\n${chunk.toString()}`);
+      });
+
+      const subprocess = spawn("/usr/local/bin/yt-dlp", args);
       subprocess.stdout?.on('data', (chunk: Buffer) => {
         const line = chunk.toString();
         const match = line.match(/(\d{1,3}\.\d)%/);
