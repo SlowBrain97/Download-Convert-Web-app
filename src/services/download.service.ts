@@ -19,7 +19,7 @@ function createCookiesFile(): string {
     try {
       const cookiesContent = Buffer.from(process.env.YT_COOKIES_BASE64, "base64").toString("utf-8");
       fs.writeFileSync(cookiesPath, cookiesContent);
-      logger.info("✅ Cookies file written to /tmp/cookies.txt");
+      logger.info("✅ Cookies file written");
     } catch (err) {
       logger.warn("⚠️ Failed to write cookies file", err);
     }
@@ -46,25 +46,23 @@ function runYtDlp(
       "--ffmpeg-location", ffmpegPath,
     ];
 
-    const formatCandidates =
-      fileType === "audio"
-        ? ["bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best"]
-        : ["bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best"];
 
     const args = [...baseArgs];
 
     if (fileType === "audio") {
-      args.push(
-        "-x",
-        "--audio-format", "mp3",
-        "--audio-quality", "0",
-        "--format", formatCandidates[0]
-      );
-    } else {
-      args.push("--format", formatCandidates[0], "--merge-output-format", "mp4");
-    }
-
-    logger.info(`🎬 Running yt-dlp with format: ${formatCandidates[0]}`);
+          args.push(
+            '-x',  
+            '--audio-format', 'mp3',
+            '--audio-quality', '0',
+            '--format', 'bestaudio/best' 
+          );
+        } else {
+          args.push(
+            "--format", "best",
+            "--merge-output-format", "mp4",
+            "--recode-video", "mp4"  
+          );
+        }
     const subprocess = spawn("/usr/local/bin/yt-dlp", args);
 
     subprocess.stdout.on("data", (chunk: Buffer) => {
