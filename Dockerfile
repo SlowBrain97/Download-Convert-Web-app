@@ -1,66 +1,57 @@
-# Build stage
+# ---------- Build Stage ----------
 FROM node:18-bullseye AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY package.json package-lock.json ./
-COPY tsconfig.json ./
+COPY package.json package-lock.json tsconfig.json ./
 
-
+# Install dependencies (no postinstall scripts yet)
 RUN npm install --ignore-scripts
 
-# Copy source code
+# Copy source
 COPY . .
 
 # Build TypeScript (src -> dist)
 RUN npm run build
 
-# Production stage
-FROM node:18-bullseye-slim
+
+# ---------- Production Stage ----------
+FROM node:18-bullseye-slim AS production
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
-    ffmpeg \
-    libreoffice \
-    libreoffice-writer \
-    libreoffice-calc \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y python3.11 python3.11-distutils python3.11-venv \
+    ffmpeg libreoffice libreoffice-writer libreoffice-calc \
+    curl ca-certificates && \
+    ln -sf /usr/bin/python3.11 /usr/bin/python3 && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp (youtube-dl alternative, more reliable)
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp && \
-    chmod a+rx /usr/local/bin/yt-dlp
+# Install latest pip and yt-dlp
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3 && \
+    pip install -U yt-dlp && \
+    ln -sf /usr/local/bin/yt-dlp /usr/local/bin/youtube-dl
 
-# Create symlink for youtube-dl to yt-dlp (backward compatibility)
-RUN ln -s /usr/local/bin/yt-dlp /usr/local/bin/youtube-dl
-
-# Copy package files
+# Copy only what’s needed for runtime
 COPY package.json package-lock.json ./
-
-# Install production dependencies only
 RUN npm ci --omit=dev --ignore-scripts
 
+# Copy compiled app
 COPY --from=builder /app/dist ./dist
 
-RUN mkdir -p public tmp && \
-    chmod -R 755 public tmp
+# Prepare directories
+RUN mkdir -p public tmp && chmod -R 755 public tmp
 
-# Set environment variables
+# Environment setup
 ENV NODE_ENV=production
 ENV PORT=10000
 
-# Expose port (Render uses PORT env variable)
 EXPOSE 10000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:10000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "require('http').get('http://localhost:10000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 
-# Start application using npm start script
+# Start app
 CMD ["npm", "start"]

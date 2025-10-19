@@ -51,16 +51,13 @@ function runYtDlp(
 
     if (fileType === "audio") {
           args.push(
-            '-x',  
-            '--audio-format', 'mp3',
             '--audio-quality', '0',
             '--format', 'bestaudio/best' 
           );
         } else {
           args.push(
-            "--format", "best",
-            "--merge-output-format", "mp4",
-            "--recode-video", "mp4"  
+            "--format", "bestvideo+bestaudio",
+            "--merge-output-format", "mp4",  
           );
         }
     const subprocess = spawn("/usr/local/bin/yt-dlp", args);
