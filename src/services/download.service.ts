@@ -75,18 +75,6 @@ export async function downloadTask(
 
         args.push("--ffmpeg-location", ffmpegPath as any);
 
-      const listFormatsArgs = [
-        url,
-        '--list-formats',
-        '--cookies', cookiesPath,
-        '--extractor-args', 'youtube:player_client=android,ios',
-      ];
-
-      const listProcess = spawn("/usr/local/bin/yt-dlp", listFormatsArgs);
-      listProcess.stdout?.on('data', (chunk: Buffer) => {
-        console.log(`Available formats:\n${chunk.toString()}`);
-      });
-
       const subprocess = spawn("/usr/local/bin/yt-dlp", args);
       subprocess.stdout?.on('data', (chunk: Buffer) => {
         const line = chunk.toString();
