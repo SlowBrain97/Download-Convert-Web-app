@@ -8,6 +8,9 @@ import { logger } from "../utils/logger.js";
 import { ffmpegPath } from "../utils/getFfmpegPath.js";
 import { cookiesPath } from "../utils/cookiesPath.js";
 
+// Rate limiting: track last download time
+let lastDownloadTime = 0;
+const MIN_DELAY_MS = 5000; // 5 seconds minimum between downloads
 
 function isYouTube(url: string) {
   return /(?:youtube\.com|youtu\.be)\//i.test(url);
@@ -26,13 +29,24 @@ async function downloadWithArgs(
       "--no-warnings",
       "--cookies", cookiesPath,
       "--extractor-args", "youtube:player_client=web",
-      "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "--add-header", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
       "--add-header", "Accept-Language: en-US,en;q=0.9",
-      "--add-header", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "--add-header", "Accept-Encoding: gzip, deflate, br",
+      "--add-header", "DNT: 1",
+      "--add-header", "Connection: keep-alive",
+      "--add-header", "Upgrade-Insecure-Requests: 1",
+      "--add-header", "Sec-Fetch-Dest: document",
+      "--add-header", "Sec-Fetch-Mode: navigate",
+      "--add-header", "Sec-Fetch-Site: none",
+      "--add-header", "Sec-Fetch-User: ?1",
+      "--add-header", "Cache-Control: max-age=0",
       "--add-header", "Referer: https://www.youtube.com/",
       "--geo-bypass",
       "--output", outPath,
       "--ffmpeg-location", ffmpegPath,
+      "--socket-timeout", "30",
+      "--retries", "3",
     ];
 
     if (fileType === "audio") {
@@ -40,18 +54,12 @@ async function downloadWithArgs(
         '-x',
         '--audio-format', 'mp3',
         '--audio-quality', '0',
-        '--format', 'bestaudio/best'
+        '--format', 'bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio'
       );
     } else {
       baseArgs.push(
-        "--format", 
-        "bv*[ext=mp4][vcodec^=avc]+ba[ext=m4a][acodec^=mp4a]/" +
-        "bv*[ext=mp4]+ba[ext=m4a]/" +
-        "bv*+ba/" +
-        "b[ext=mp4][vcodec^=avc][acodec^=mp4a]/" +
-        "bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]" +
-        "b",
-        "--postprocessorArgs", ["-c:v", "copy", "-c:a", "aac"],
+        "--format",
+        "best[ext=mp4]/best[ext=webm]/best",
         "--merge-output-format", "mp4",
       );
     }
@@ -75,9 +83,22 @@ async function downloadWithArgs(
 
     subprocess.stderr.on("data", (chunk: Buffer) => {
       const msg = chunk.toString().trim();
+      logger.warn(`[yt-dlp stderr]: ${msg}`);
+
       if (msg.includes("ERROR")) {
-        logger.warn(`[yt-dlp]: ${msg}`);
-        tasks.error(taskId, "Sorry, something went wrong");
+        if (msg.includes("403")) {
+          tasks.error(taskId, "YouTube blocked the request (403 Forbidden). Try again later or use a different approach.");
+        } else if (msg.includes("404")) {
+          tasks.error(taskId, "Video not found or unavailable (404).");
+        } else if (msg.includes("Sign in to confirm")) {
+          tasks.error(taskId, "Video requires authentication. Please provide valid YouTube cookies.");
+        } else if (msg.includes("Video unavailable")) {
+          tasks.error(taskId, "Video is unavailable in your region or has been removed.");
+        } else if (msg.includes("age")) {
+          tasks.error(taskId, "Video is age-restricted. Authentication may be required.");
+        } else {
+          tasks.error(taskId, `Download failed: ${msg}`);
+        }
         resolve(false);
       }
     });
@@ -101,7 +122,16 @@ export async function downloadTask(
 ) {
   try {
     ensureTempDir();
-    
+
+    // Rate limiting: ensure minimum delay between downloads
+    const now = Date.now();
+    const timeSinceLastDownload = now - lastDownloadTime;
+    if (timeSinceLastDownload < MIN_DELAY_MS) {
+      const delay = MIN_DELAY_MS - timeSinceLastDownload;
+      logger.info(`⏳ Rate limiting: waiting ${delay}ms before download`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
     if (isYouTube(url)) {
       const titleSafe = `download-${Date.now()}`;
       const ext = fileType === 'audio' ? 'mp3' : 'mp4';
@@ -142,6 +172,7 @@ export async function downloadTask(
       const stat = await fs.promises.stat(outPath);
       
       logger.info(`✅ Download completed: ${stat.size} bytes`);
+      lastDownloadTime = Date.now(); // Update rate limiting timestamp
 
       tasks.complete(taskId, {
         downloadUrl: getPublicUrl(path.basename(outPath)),
