@@ -12,47 +12,6 @@ function isYouTube(url: string) {
   return /(?:youtube\.com|youtu\.be)\//i.test(url);
 }
 
-async function checkAvailableFormats(
-  url: string, 
-  cookiesPath: string,
-  clientArgs: string[]
-): Promise<{ hasFormats: boolean; output: string }> {
-  return new Promise((resolve) => {
-    const args = [
-      url,
-      "--list-formats",
-      "--cookies", cookiesPath,
-      ...clientArgs,
-    ];
-
-    const subprocess = spawn("/usr/local/bin/yt-dlp", args);
-
-    let output = '';
-    let stderr = '';
-
-    subprocess.stdout.on("data", (chunk: Buffer) => {
-      output += chunk.toString();
-    });
-
-    subprocess.stderr.on("data", (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
-
-    subprocess.on("close", (code) => {
-      const hasRealFormats = 
-        (output.includes('mp4') || output.includes('webm') || output.includes('m4a')) &&
-        !output.includes('Only images are available');
-      
-      logger.info(`Format check: ${hasRealFormats ? 'Has real formats' : 'Only storyboards'}`);
-      if (stderr) {
-        logger.info(`Format check stderr: ${stderr}`);
-      }
-      
-      resolve({ hasFormats: hasRealFormats, output });
-    });
-  });
-}
-
 function downloadWithArgs(
   url: string,
   outPath: string, 
@@ -98,7 +57,7 @@ function downloadWithArgs(
       const text = chunk.toString();
       const match = text.match(/(\d{1,3}\.\d)%/);
       if (match) {
-        const pct = Math.min(95, Math.floor(parseFloat(match[1])));
+        const pct = Math.min(99, Math.floor(parseFloat(match[1])));
         tasks.update(taskId, { 
           progress: pct, 
           message: `downloading ${pct}%` 
@@ -123,161 +82,6 @@ function downloadWithArgs(
       resolve(code === 0);
     });
   });
-}
-
-
-async function tryDownloadStrategies(
-  url: string, 
-  outPath: string, 
-  cookiesPath: string,
-  fileType: 'video' | 'audio',
-  taskId: string
-): Promise<boolean> {
-  
-  const strategy2 = async () => {
-    logger.info('🔄 Strategy 1: Web client with cookies');
-    
-
-    const check = await checkAvailableFormats(url, cookiesPath, [
-      "--extractor-args", "youtube:player_client=web"
-    ]);
-    
-    if (!check.hasFormats) {
-      logger.warn('No formats available with web client');
-      return false;
-    }
-    
-    return downloadWithArgs(url, outPath, cookiesPath, fileType, taskId, [
-      "--extractor-args", "youtube:player_client=web"
-    ]);
-  };
-
-
-  const strategy1 = async () => {
-    logger.info('🔄 Strategy 2: Web embedded client');
-    
-    const check = await checkAvailableFormats(url, cookiesPath, [
-      "--extractor-args", "youtube:player_client=web_embedded"
-    ]);
-    
-    if (!check.hasFormats) {
-      logger.warn('No formats available with web_embedded client');
-      return false;
-    }
-    
-    return downloadWithArgs(url, outPath, cookiesPath, fileType, taskId, [
-      "--extractor-args", "youtube:player_client=web_embedded"
-    ]);
-  };
-
-
-  const strategy3 = async () => {
-    logger.info('🔄 Strategy 3: TV embedded client');
-    
-    const check = await checkAvailableFormats(url, cookiesPath, [
-      "--extractor-args", "youtube:player_client=tv_embedded"
-    ]);
-    
-    if (!check.hasFormats) {
-      logger.warn('No formats available with tv_embedded client');
-      return false;
-    }
-    
-    return downloadWithArgs(url, outPath, cookiesPath, fileType, taskId, [
-      "--extractor-args", "youtube:player_client=tv_embedded"
-    ]);
-  };
-
-
-  const strategy4 = async () => {
-    logger.info('🔄 Strategy 4: MediaConnect client');
-    
-    const check = await checkAvailableFormats(url, cookiesPath, [
-      "--extractor-args", "youtube:player_client=mediaconnect"
-    ]);
-    
-    if (!check.hasFormats) {
-      logger.warn('No formats available with mediaconnect client');
-      return false;
-    }
-    
-    return downloadWithArgs(url, outPath, cookiesPath, fileType, taskId, [
-      "--extractor-args", "youtube:player_client=mediaconnect"
-    ]);
-  };
-
-
-  const strategy5 = async () => {
-    logger.info('🔄 Strategy 5: No cookies, default client');
-    
-    const check = await checkAvailableFormats(url, '/dev/null', []);
-    
-    if (!check.hasFormats) {
-      logger.warn('No formats available without cookies');
-      return false;
-    }
-    
-    return downloadWithArgs(url, outPath, '/dev/null', fileType, taskId, []);
-  };
-
- 
-  const strategy6 = async () => {
-    logger.info('🔄 Strategy 6: OAuth authentication');
-    
-    const check = await checkAvailableFormats(url, cookiesPath, [
-      "--extractor-args", "youtube:player_client=web",
-      "--username", "oauth2",
-      "--password", ""
-    ]);
-    
-    if (!check.hasFormats) {
-      logger.warn('No formats available with OAuth');
-      return false;
-    }
-    
-    return downloadWithArgs(url, outPath, cookiesPath, fileType, taskId, [
-      "--extractor-args", "youtube:player_client=web",
-      "--username", "oauth2",
-      "--password", ""
-    ]);
-  };
-
-
-  const strategies = [
-    strategy1,  
-    strategy2,  
-    strategy3,  
-    strategy4,  
-    strategy5,  
-    strategy6,  
-  ];
-  
-  for (let i = 0; i < strategies.length; i++) {
-    const strategy = strategies[i];
-    
-    try {
-      logger.info(`Attempting strategy ${i + 1}/${strategies.length}`);
-      const success = await strategy();
-      
-      if (success && existsSync(outPath)) {
-        const stats = fs.statSync(outPath);
-        if (stats.size > 1000) {
-          logger.info(`✅ Success with strategy ${i + 1}!`);
-          return true;
-        }
-      }
-      
-      logger.warn(`❌ Strategy ${i + 1} failed, trying next...`);
-    } catch (err) {
-      logger.error(`Strategy ${i + 1} error:`, err);
-    }
-    
-    if (i < strategies.length - 1) {
-      await new Promise(r => setTimeout(r, 1000));
-    }
-  }
-
-  return false;
 }
 
 export async function downloadTask(
@@ -319,24 +123,15 @@ export async function downloadTask(
       // Try download with multiple strategies
       tasks.update(taskId, { message: 'Checking video availability...' });
       
-      const success = await tryDownloadStrategies(
-        url, 
-        outPath, 
-        cookiesPath, 
-        fileType,
-        taskId
-      );
+      const success = downloadWithArgs(url, outPath, cookiesPath, fileType, taskId, [
+      "--extractor-args", "youtube:player_client=web"
+    ]);
 
       if (!success) {
         // One last check if file somehow exists
         if (!existsSync(outPath)) {
           throw new Error(
-            'Video không thể download. Có thể:\n' +
-            '• Video bị private/unlisted\n' +
-            '• Video bị age-restricted (cần cookies hợp lệ)\n' +
-            '• Video bị geo-blocked\n' +
-            '• Cookies đã hết hạn\n' +
-            '• Video đang được xử lý bởi YouTube'
+            'Cant get file from this url'
           );
         }
       }
