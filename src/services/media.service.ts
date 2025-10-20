@@ -25,30 +25,6 @@ interface ConversionResult {
   outputFormat: MediaFormat;
 }
 
-// === FFmpeg path config ===
-const isProd = process.env.NODE_ENV === "production";
-export let ffmpegPath: any;
-
-if (isProd) {
-  ffmpegPath = fs.existsSync("/usr/bin/ffmpeg")
-    ? "/usr/bin/ffmpeg"
-    : "/usr/local/bin/ffmpeg";
-} else {
-  try {
-    const ffmpegStatic = await import("ffmpeg-static");
-    ffmpegPath = ffmpegStatic.default;
-  } catch {
-    console.warn("⚠️ ffmpeg-static not found — ensure it's installed in dev env");
-  }
-}
-
-if (ffmpegPath) {
-  ffmpeg.setFfmpegPath(ffmpegPath);
-  console.log("🎬 Using ffmpeg at:", ffmpegPath);
-} else {
-  console.error("❌ No ffmpeg found! Install ffmpeg or ffmpeg-static.");
-}
-
 // === Constants ===
 const VIDEO_FORMATS: readonly VideoFormat[] = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'wmv', 'flv', 'mpeg'];
 const AUDIO_FORMATS: readonly AudioFormat[] = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma', 'opus'];
@@ -238,7 +214,7 @@ export async function convertMediaTask(
       progress: 10 
     });
     
-    // Validate output format
+
     if (!isAudioFormat(outputFormat) && !isVideoFormat(outputFormat)) {
       throw new Error(`Invalid output format: ${outputFormat}`);
     }
