@@ -54,8 +54,8 @@ const Download = () => {
       console.log(response.data);
       setDownloadTaskId(response.data.taskId);
       toast({
-        title: "Download Complete!",
-        description: "Your video has been processed successfully.",
+        title: "Processing",
+        description: "Your video is being processed.",
       });
       
     } catch (error) {
@@ -100,7 +100,10 @@ const Download = () => {
         });
       })
   
-      return ()=> eventSource.close();
+      return ()=> 
+        {eventSource.close();
+          resetDownload();
+        }
     },[download.taskId])
 
 

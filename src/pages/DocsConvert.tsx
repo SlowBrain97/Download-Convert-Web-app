@@ -8,7 +8,6 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { ResultCard } from "@/components/ui/result-card";
 import { useAppStore } from "@/store/useAppStore";
 import { useToast } from "@/hooks/use-toast";
-import axios from "axios";
 import { useEffect } from "react";
 import axiosInstance from "@/lib/apiConfig";
 
@@ -64,9 +63,7 @@ const DocsConvert = () => {
     try {
       setConversionLoading(true);
       setConversionError(null);
-      setConversionProgress(0);
 
-      // Replace with actual API call
       const formData = new FormData();
       formData.append('file', conversion.file);
       formData.append('outputFormat', conversion.outputFormat);
@@ -75,9 +72,13 @@ const DocsConvert = () => {
       const response = await axiosInstance.post('/api/docs/convert', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      console.log(response.data);
+
       setConversionTaskId(response.data.taskId);
-      
+      toast({
+        title: "Conversion Started", 
+        description: "Your document is being converted. Please wait...",
+        variant: "default"
+      });
     } catch (error) {
       setConversionError(error instanceof Error ? error.message : "Conversion failed");
       toast({
@@ -107,6 +108,11 @@ const DocsConvert = () => {
       const data = JSON.parse(event.data);
       setConversionResult(data.result);
       setConversionLoading(false);
+      toast({
+        title: "Conversion Complete!", 
+        description: "Your document has been converted successfully.",
+        variant: "default"
+      });
       eventSource.close();
     })
     eventSource.addEventListener("error", (event) => {
