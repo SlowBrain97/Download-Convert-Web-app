@@ -12,7 +12,6 @@ function isYouTube(url: string) {
   return /(?:youtube\.com|youtu\.be)\//i.test(url);
 }
 
-// Kiểm tra formats có sẵn
 async function checkAvailableFormats(
   url: string, 
   cookiesPath: string,
@@ -40,7 +39,6 @@ async function checkAvailableFormats(
     });
 
     subprocess.on("close", (code) => {
-      // Check for actual video/audio formats (not just storyboards)
       const hasRealFormats = 
         (output.includes('mp4') || output.includes('webm') || output.includes('m4a')) &&
         !output.includes('Only images are available');
@@ -55,7 +53,6 @@ async function checkAvailableFormats(
   });
 }
 
-// Download với args cụ thể
 function downloadWithArgs(
   url: string,
   outPath: string, 
@@ -72,8 +69,6 @@ function downloadWithArgs(
       ...clientArgs,
       "--output", outPath,
       "--ffmpeg-location", ffmpegPath,
-      // Add verbose logging to debug
-      "--verbose"
     ];
 
     if (fileType === "audio") {
@@ -84,23 +79,23 @@ function downloadWithArgs(
         '--format', 'bestaudio/best'
       );
     } else {
-      // Explicit format selection with audio priority
       baseArgs.push(
-        // Get best video + best audio, then merge
-        "--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
-        "--merge-output-format", "mp4"
+        "--format", 
+        "bv*[ext=mp4][vcodec^=avc]+ba[ext=m4a][acodec^=mp4a]/" +
+        "bv*[ext=mp4]+ba[ext=m4a]/" +
+        "bv*+ba/" +
+        "b[ext=mp4][vcodec^=avc][acodec^=mp4a]/" +
+        "b",
+        "--merge-output-format", "mp4",
+        "--remux-video", "mp4"
       );
     }
 
     logger.info(`Trying download with args: ${clientArgs.join(' ')}`);
-    logger.info(`Full command: yt-dlp ${baseArgs.join(' ')}`);
-    
     const subprocess = spawn("/usr/local/bin/yt-dlp", baseArgs);
     
     subprocess.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
-      logger.info(`[yt-dlp stdout]: ${text.trim()}`);
-      
       const match = text.match(/(\d{1,3}\.\d)%/);
       if (match) {
         const pct = Math.min(95, Math.floor(parseFloat(match[1])));
@@ -113,8 +108,6 @@ function downloadWithArgs(
 
     subprocess.stderr.on("data", (chunk: Buffer) => {
       const msg = chunk.toString().trim();
-      logger.info(`[yt-dlp stderr]: ${msg}`);
-      
       if (msg.includes("ERROR")) {
         logger.warn(`[yt-dlp]: ${msg}`);
       }
@@ -132,7 +125,7 @@ function downloadWithArgs(
   });
 }
 
-// Thử nhiều strategies
+
 async function tryDownloadStrategies(
   url: string, 
   outPath: string, 
@@ -141,11 +134,10 @@ async function tryDownloadStrategies(
   taskId: string
 ): Promise<boolean> {
   
-  // Strategy 1: Web client với cookies (RECOMMENDED sau update)
   const strategy2 = async () => {
     logger.info('🔄 Strategy 1: Web client with cookies');
     
-    // Check formats first
+
     const check = await checkAvailableFormats(url, cookiesPath, [
       "--extractor-args", "youtube:player_client=web"
     ]);
@@ -160,7 +152,7 @@ async function tryDownloadStrategies(
     ]);
   };
 
-  // Strategy 2: Web + embedded client
+
   const strategy1 = async () => {
     logger.info('🔄 Strategy 2: Web embedded client');
     
@@ -178,7 +170,7 @@ async function tryDownloadStrategies(
     ]);
   };
 
-  // Strategy 3: TV client (sometimes bypasses restrictions)
+
   const strategy3 = async () => {
     logger.info('🔄 Strategy 3: TV embedded client');
     
@@ -196,7 +188,7 @@ async function tryDownloadStrategies(
     ]);
   };
 
-  // Strategy 4: MediaConnect client (new, for restricted content)
+
   const strategy4 = async () => {
     logger.info('🔄 Strategy 4: MediaConnect client');
     
@@ -214,11 +206,10 @@ async function tryDownloadStrategies(
     ]);
   };
 
-  // Strategy 5: No cookies (public videos only)
+
   const strategy5 = async () => {
     logger.info('🔄 Strategy 5: No cookies, default client');
     
-    // Try without cookies
     const check = await checkAvailableFormats(url, '/dev/null', []);
     
     if (!check.hasFormats) {
@@ -229,7 +220,7 @@ async function tryDownloadStrategies(
     return downloadWithArgs(url, outPath, '/dev/null', fileType, taskId, []);
   };
 
-  // Strategy 6: OAuth flow (most reliable for restricted content)
+ 
   const strategy6 = async () => {
     logger.info('🔄 Strategy 6: OAuth authentication');
     
@@ -251,14 +242,14 @@ async function tryDownloadStrategies(
     ]);
   };
 
-  // Try strategies in order
+
   const strategies = [
-    strategy1,  // Web client (best with cookies)
-    strategy2,  // Web embedded
-    strategy3,  // TV embedded
-    strategy4,  // MediaConnect
-    strategy5,  // No cookies
-    strategy6,  // OAuth (last resort)
+    strategy1,  
+    strategy2,  
+    strategy3,  
+    strategy4,  
+    strategy5,  
+    strategy6,  
   ];
   
   for (let i = 0; i < strategies.length; i++) {
@@ -281,7 +272,6 @@ async function tryDownloadStrategies(
       logger.error(`Strategy ${i + 1} error:`, err);
     }
     
-    // Wait before retry
     if (i < strategies.length - 1) {
       await new Promise(r => setTimeout(r, 1000));
     }
@@ -290,7 +280,6 @@ async function tryDownloadStrategies(
   return false;
 }
 
-// Main download function
 export async function downloadTask(
   taskId: string,
   url: string,
@@ -385,44 +374,6 @@ export async function downloadTask(
       
       return;
     }
-
-    // Non-YouTube downloads (existing code)
-    const outName = `download-${Date.now()}`;
-    const extMatch = url.match(/\.([a-z0-9]{2,5})(?:$|[?#])/i);
-    const extHttp = extMatch ? extMatch[1] : (fileType === 'audio' ? 'mp3' : 'mp4');
-    const finalName = `${outName}.${extHttp}`;
-    const outPath = path.resolve(toPublicPath(finalName));
-    const outDir = path.dirname(outPath);
-
-    if (!fs.existsSync(outDir)) {
-      fs.mkdirSync(outDir, { recursive: true });
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      const stream = got.stream(url);
-      const write = fs.createWriteStream(outPath);
-
-      stream.on('downloadProgress', (p: any) => {
-        if (p.total) {
-          const pct = Math.min(95, Math.floor((p.transferred / p.total) * 100));
-          tasks.update(taskId, { progress: pct, message: `downloading ${pct}%` });
-        }
-      });
-
-      stream.on('error', reject);
-      write.on('error', reject);
-      write.on('finish', resolve);
-      stream.pipe(write);
-    });
-
-    const stat = await fs.promises.stat(outPath);
-    tasks.complete(taskId, {
-      downloadUrl: getPublicUrl(path.basename(outPath)),
-      filePath: outPath,
-      fileName: path.basename(outPath),
-      size: stat.size,
-    });
-
   } catch (err: any) {
     logger.error('downloadTask failed', err);
     tasks.error(taskId, err?.message || 'Download failed');
