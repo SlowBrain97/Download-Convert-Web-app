@@ -26,6 +26,11 @@ async function downloadWithArgs(
       "--no-warnings",
       "--cookies", cookiesPath,
       "--extractor-args", "youtube:player_client=web",
+      "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      "--add-header", "Accept-Language: en-US,en;q=0.9",
+      "--add-header", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "--add-header", "Referer: https://www.youtube.com/",
+      "--geo-bypass",
       "--output", outPath,
       "--ffmpeg-location", ffmpegPath,
     ];
@@ -44,9 +49,10 @@ async function downloadWithArgs(
         "bv*[ext=mp4]+ba[ext=m4a]/" +
         "bv*+ba/" +
         "b[ext=mp4][vcodec^=avc][acodec^=mp4a]/" +
+        "bestvideo[vcodec^=avc1]+bestaudio[ext=m4a]" +
         "b",
+        "--postprocessorArgs", ["-c:v", "copy", "-c:a", "aac"],
         "--merge-output-format", "mp4",
-        "--remux-video", "mp4"
       );
     }
 
@@ -71,6 +77,8 @@ async function downloadWithArgs(
       const msg = chunk.toString().trim();
       if (msg.includes("ERROR")) {
         logger.warn(`[yt-dlp]: ${msg}`);
+        tasks.error(taskId, "Sorry, something went wrong");
+        resolve(false);
       }
     });
 
