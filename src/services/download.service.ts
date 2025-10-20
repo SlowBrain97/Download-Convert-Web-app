@@ -21,21 +21,31 @@ async function checkAvailableFormats(url: string, cookiesPath: string): Promise<
       "--list-formats",
       "--cookies", cookiesPath,
       "--extractor-args", "youtube:player_client=android,ios",
+      "--user-agent", "com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip"
     ]);
 
     let output = '';
+    let errorOutput = '';
     subprocess.stdout.on("data", (chunk: Buffer) => {
       output += chunk.toString();
     });
+    subprocess.stderr.on("data", (chunk: Buffer) => {
+      errorOutput += chunk.toString();
+    });
 
     subprocess.on("close", (code) => {
-      // Kiểm tra xem có format thực tế không (không phải chỉ storyboard)
-      const hasRealFormats = output.includes('mp4') || 
-                            output.includes('webm') || 
-                            output.includes('m4a');
-      
+      logger.info(`yt-dlp exit code: ${code}`);
+      logger.info(`yt-dlp stdout:\n${output}`);
+      logger.info(`yt-dlp stderr:\n${errorOutput}`);
+
+      const hasRealFormats = /(\d{1,3}p|mp4|webm|m4a)/.test(output);
       logger.info(`Format check: ${hasRealFormats ? 'Has real formats' : 'Only storyboards'}`);
       resolve(hasRealFormats);
+    });
+
+    subprocess.on("error", (err) => {
+      logger.error("yt-dlp process failed", err);
+      resolve(false);
     });
   });
 }
@@ -120,7 +130,6 @@ function downloadWithArgs(
     if (fileType === "audio") {
       args.push(
         '-x',
-        '--audio-format', 'mp3',
         '--audio-quality', '0',
         '--format', 'bestaudio/best'
       );
