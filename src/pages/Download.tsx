@@ -61,8 +61,8 @@ const Download = () => {
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "Download failed");
       toast({
-        title: "Download Failed",
-        description: "Please check your URL and try again.",
+        title: "Request Failed",
+        description: "Maybe server's problem or your url , please try again.",
         variant: "destructive"
       });
     }
@@ -74,6 +74,12 @@ const Download = () => {
       eventSource.addEventListener('progress', (event) => {
         const data = JSON.parse(event.data);
         setDownloadProgress(data.progress);
+        if (data.status === 'processing') {
+          toast({
+            title: "Processing...",
+            description: data.message,
+          });
+        }
       })
       eventSource.addEventListener('complete', (event) => {
         const data = JSON.parse(event.data);
@@ -95,7 +101,7 @@ const Download = () => {
         eventSource.close();
         toast({
           title: "Download Failed", 
-          description: "Please check your url and try again.",
+          description: "Maybe server's problem or your url , please try again.",
           variant: "destructive"
         });
       })
