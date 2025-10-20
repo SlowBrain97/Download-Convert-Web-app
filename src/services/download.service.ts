@@ -6,6 +6,8 @@ import { tasks } from "../utils/taskManager.js";
 import { getPublicUrl, toPublicPath, ensureTempDir } from "../utils/file.js";
 import { logger } from "../utils/logger.js";
 import { ffmpegPath } from "./media.service.js";
+import  runYtDlp  from "../utils/runYtDl.js";
+import getAvailableFormats from "../utils/getListFormat.js";
 
 
 function isYouTube(url: string) {
@@ -27,71 +29,6 @@ function createCookiesFile(): string {
   return cookiesPath;
 }
 
-function runYtDlp(
-  url: string,
-  fileType: "audio" | "video",
-  outPath: string,
-  ffmpegPath: string,
-  cookiesPath: string,
-  taskId: string
-): Promise<boolean> {
-  return new Promise((resolve) => {
-    const baseArgs = [
-      url,
-      "--no-warnings",
-      "--cookies", cookiesPath,
-      "--extractor-args", "youtube:player_client=android,ios",
-      "--user-agent", "com.google.android.youtube/17.36.4 (Linux; U; Android 12; GB) gzip",
-      "--output", outPath,
-      "--ffmpeg-location", ffmpegPath,
-    ];
-
-
-    const args = [...baseArgs];
-
-    if (fileType === "audio") {
-          args.push(
-            '--audio-quality', '0',
-            '--format', 'bestaudio' 
-          );
-        } else {
-          args.push(
-            "--format", "bestvideo+bestaudio/best",
-            "--merge-output-format", "mp4",  
-          );
-        }
-    const subprocess = spawn("/usr/local/bin/yt-dlp", args);
-
-    subprocess.stdout.on("data", (chunk: Buffer) => {
-      const text = chunk.toString();
-      const match = text.match(/(\d{1,3}\.\d)%/);
-      if (match) {
-        const pct = Math.min(95, Math.floor(parseFloat(match[1])));
-        tasks.update(taskId, { progress: pct, message: `downloading ${pct}%` });
-        logger.info(`⏳ Progress: ${pct}%`);
-      }
-    });
-
-    subprocess.stderr.on("data", (chunk: Buffer) => {
-      const msg = chunk.toString().trim();
-      if (msg.includes("Requested format is not available")) {
-        logger.warn(`[yt-dlp stderr]: ${msg}`);
-      } else {
-        logger.info(`[yt-dlp stderr]: ${msg}`);
-      }
-    });
-
-    subprocess.on("error", (err) => {
-      logger.error("❌ yt-dlp process error", err);
-      resolve(false);
-    });
-
-    subprocess.on("close", (code) => {
-      logger.info(`[yt-dlp] Process closed with code: ${code}`);
-      resolve(code === 0);
-    });
-  });
-}
 
 export async function downloadTask(
   taskId: string,
@@ -112,6 +49,8 @@ export async function downloadTask(
       fs.mkdirSync(path.dirname(outPath), { recursive: true });
 
       const cookiesPath = createCookiesFile();
+      const listFormat = await getAvailableFormats(url, cookiesPath);
+      logger.info(`📋 Available formats: ${listFormat}`);
 
       const ok = await runYtDlp(url, fileType, outPath, ffmpegPath, cookiesPath, taskId);
       if (!ok) throw new Error("yt-dlp failed to download or merge media");
