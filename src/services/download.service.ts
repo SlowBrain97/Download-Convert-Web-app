@@ -12,8 +12,6 @@ function isYouTube(url: string) {
   return /(?:youtube\.com|youtu\.be)\//i.test(url);
 }
 
-
-
 // Kiểm tra formats có sẵn
 async function checkAvailableFormats(
   url: string, 
@@ -74,6 +72,8 @@ function downloadWithArgs(
       ...clientArgs,
       "--output", outPath,
       "--ffmpeg-location", ffmpegPath,
+      // Add verbose logging to debug
+      "--verbose"
     ];
 
     if (fileType === "audio") {
@@ -84,17 +84,23 @@ function downloadWithArgs(
         '--format', 'bestaudio/best'
       );
     } else {
+      // Explicit format selection with audio priority
       baseArgs.push(
-        "--format", "bv*+ba/b",
+        // Get best video + best audio, then merge
+        "--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best",
         "--merge-output-format", "mp4"
       );
     }
 
     logger.info(`Trying download with args: ${clientArgs.join(' ')}`);
+    logger.info(`Full command: yt-dlp ${baseArgs.join(' ')}`);
+    
     const subprocess = spawn("/usr/local/bin/yt-dlp", baseArgs);
     
     subprocess.stdout.on("data", (chunk: Buffer) => {
       const text = chunk.toString();
+      logger.info(`[yt-dlp stdout]: ${text.trim()}`);
+      
       const match = text.match(/(\d{1,3}\.\d)%/);
       if (match) {
         const pct = Math.min(95, Math.floor(parseFloat(match[1])));
@@ -107,6 +113,8 @@ function downloadWithArgs(
 
     subprocess.stderr.on("data", (chunk: Buffer) => {
       const msg = chunk.toString().trim();
+      logger.info(`[yt-dlp stderr]: ${msg}`);
+      
       if (msg.includes("ERROR")) {
         logger.warn(`[yt-dlp]: ${msg}`);
       }
@@ -134,7 +142,7 @@ async function tryDownloadStrategies(
 ): Promise<boolean> {
   
   // Strategy 1: Web client với cookies (RECOMMENDED sau update)
-  const strategy1 = async () => {
+  const strategy2 = async () => {
     logger.info('🔄 Strategy 1: Web client with cookies');
     
     // Check formats first
@@ -153,7 +161,7 @@ async function tryDownloadStrategies(
   };
 
   // Strategy 2: Web + embedded client
-  const strategy2 = async () => {
+  const strategy1 = async () => {
     logger.info('🔄 Strategy 2: Web embedded client');
     
     const check = await checkAvailableFormats(url, cookiesPath, [
