@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Core mysterious theme colors */
+    --background: 232 18% 22%;           /* #2D3142 - Dark blue-gray background */
+    --foreground: 290 8% 85%;            /* #D8D5DB - Light text */
+
+    --card: 232 20% 25%;                 /* Slightly lighter than background */
+    --card-foreground: 290 8% 85%;      /* Light text on cards */
+
+    --popover: 232 25% 18%;              /* Darker popover */
+    --popover-foreground: 290 8% 85%;   /* Light text */
+
+    --primary: 283 8% 70%;               /* #ADACB5 - Medium purple-gray */
+    --primary-foreground: 232 18% 22%;  /* Dark text on primary */
+
+    --secondary: 232 25% 30%;            /* Lighter secondary */
+    --secondary-foreground: 290 8% 85%; /* Light text */
+
+    --muted: 232 15% 35%;                /* Muted elements */
+    --muted-foreground: 283 8% 65%;     /* Muted text */
+
+    --accent: 290 15% 40%;               /* Accent color with mystery */
+    --accent-foreground: 290 8% 85%;    /* Light text on accent */
+
+    --destructive: 0 70% 55%;            /* Red for errors */
+    --destructive-foreground: 0 0% 98%; /* White text on destructive */
+
+    --border: 232 20% 30%;               /* Subtle borders */
+    --input: 232 25% 28%;                /* Input backgrounds */
+    --ring: 283 8% 70%;                  /* Focus ring */
+
+    --radius: 0.75rem;                   /* Rounded corners */
+
+    /* Custom design tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(232, 18%, 22%) 0%, hsl(232, 25%, 18%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(283, 8%, 70%) 0%, hsl(290, 8%, 85%) 100%);
+    --gradient-glass: linear-gradient(135deg, hsl(290, 8%, 85%, 0.05) 0%, hsl(283, 8%, 70%, 0.1) 100%);
+    
+    --shadow-glow: 0 0 40px hsl(283, 8%, 70%, 0.3);
+    --shadow-depth: 0 10px 30px hsl(232, 18%, 10%, 0.3);
+    --shadow-glass: inset 0 1px 0 hsl(290, 8%, 85%, 0.1);
+
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

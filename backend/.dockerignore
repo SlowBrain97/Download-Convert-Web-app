@@ -1,0 +1,37 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Docs
+*.md
+!README.md
+
+
+# Temporary files
+tmp
+temp
+public*
+*.log
+*.tmp
+
+# CI/CD
+.github
+.gitlab-ci.yml

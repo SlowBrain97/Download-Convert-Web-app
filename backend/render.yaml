@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: express-ts-media-server
+    runtime: docker  
+    env: docker     
+    healthCheckPath: /health
+    
+    # Dockerfile config
+    dockerfilePath: ./Dockerfile  
+    dockerContext: ./            
+    
+    
+    disk:
+      name: media-storage
+      mountPath: /app/public
+      sizeGB: 1
+    
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    
+
+    autoDeploy: true
