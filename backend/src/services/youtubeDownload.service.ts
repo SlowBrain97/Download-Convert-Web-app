@@ -17,6 +17,16 @@ type Strategy = {
 
 const STRATEGIES: Strategy[] = [
   {
+    name: "Android client",
+    id: "android_testsuite",
+    args: (cookiesPath?: string) => [
+      "--no-warnings",
+      "--geo-bypass",
+      "--cookies", cookiesPath!,
+      "--extractor-args", "youtube:player_client=android_testsuite",
+    ],
+  },
+  {
     name: "Android Music client",
     id: "android_music",
     args: (cookiesPath?: string) => [
@@ -50,17 +60,6 @@ const STRATEGIES: Strategy[] = [
       "--user-agent", "com.google.ios.youtube/19.09.3 (iPhone14,3; U; CPU iOS 15_6 like Mac OS X)",
       "--add-header", "X-YouTube-Client-Name: 5",
       "--add-header", "X-YouTube-Client-Version: 19.09.3",
-    ],
-  },
-
-  {
-    name: "Android client",
-    id: "android_testsuite",
-    args: (cookiesPath?: string) => [
-      "--no-warnings",
-      "--geo-bypass",
-      "--cookies", cookiesPath!,
-      "--extractor-args", "youtube:player_client=android_testsuite",
     ],
   },
 
@@ -100,7 +99,7 @@ async function runYtDlp(
 
       const match = text.match(/(\d{1,3}\.\d)%/);
       if (match) {
-        const pct = Math.min(95, Math.floor(parseFloat(match[1])));
+        const pct = Math.min(99, Math.floor(parseFloat(match[1])));
         tasks.update(taskId, { progress: pct, message: `Downloading ${pct}%` });
       }
 
@@ -139,7 +138,7 @@ async function tryDownloadWithFallbacks(
   for (const strategy of STRATEGIES) {
     logger.info(`🔄 Strategy: ${strategy.name}`);
     tasks.update(taskId, {
-      status: "processing",
+      status: "queued",
       message: `Trying ${strategy.name}...`,
     });
 
@@ -190,7 +189,11 @@ export default async function youtubeDownloadTask(
     if (!success) {
       throw new Error("All strategies failed. Check cookies or geo-block restrictions.");
     }
-
+    tasks.update(taskId, {
+      status: "ready",
+      message: "Congratulations! File downloaded. Now,creating file to ready for download.",
+      progress: 99,
+    });
     const stat = await fs.promises.stat(outPath);
     if (stat.size < 1000) throw new Error("File too small — incomplete download");
 

@@ -75,9 +75,15 @@ const Download = () => {
       eventSource.addEventListener('progress', (event) => {
         const data = JSON.parse(event.data);
         setDownloadProgress(data.progress);
-        if (data.status === 'processing') {
+        if (data.status === 'queued') {
           toast({
             title: "Processing...",
+            description: data.message,
+          });
+        }
+        if (data.status === 'ready') {
+          toast({
+            title: "Ready to Download!",
             description: data.message,
           });
         }
