@@ -3,7 +3,6 @@ import { motion } from "framer-motion";
 import { Download as DownloadIcon, Play, Music, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { ResultCard } from "@/components/ui/result-card";
@@ -12,10 +11,10 @@ import { useToast } from "@/hooks/use-toast";
 import axiosInstance from "@/lib/apiConfig";
 
 const platforms = [
-  { value: "youtube", label: "YouTube", icon: Play, color: "from-red-500 to-red-600" },
-  { value: "tiktok", label: "TikTok", icon: Music, color: "from-black to-gray-800" },
-  { value: "instagram", label: "Instagram", icon: Image, color: "from-pink-500 to-purple-600" },
-  { value: "x", label: "X (Twitter)", icon: Play, color: "from-blue-500 to-blue-600" }
+  { value: "youtube", label: "YouTube", icon: Play, color: "from-red-500 to-red-600", disabled: false},
+  { value: "instagram", label: "Instagram", icon: Image, color: "from-pink-500 to-purple-600", disabled: false},
+  { value: "tiktok", label: "TikTok", icon: Music, color: "from-black to-gray-800", disabled: true },
+  { value: "x", label: "X (Twitter)", icon: Play, color: "from-blue-500 to-blue-600", disabled: true }
 ];
 
 const Download = () => {
@@ -59,10 +58,10 @@ const Download = () => {
       });
       
     } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : "Download failed");
+      setDownloadError(error instanceof Error ? error.message : "Maybe server's problem or your url , please try again.");
       toast({
         title: "Request Failed",
-        description: "Maybe server's problem or your url , please try again.",
+        description: download.error,
         variant: "destructive"
       });
       setDownloadLoading(false);
@@ -75,7 +74,7 @@ const Download = () => {
       eventSource.addEventListener('progress', (event) => {
         const data = JSON.parse(event.data);
         setDownloadProgress(data.progress);
-        if (data.status === 'queued') {
+        if (data.status === 'trying') {
           toast({
             title: "Processing...",
             description: data.message,
@@ -162,6 +161,7 @@ const Download = () => {
                       key={platform.value}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
+                      disabled={platform.disabled}
                       onClick={() => setDownloadPlatform(platform.value as any)}
                       className={`p-4 rounded-xl border transition-all duration-300 ${
                         isSelected 
@@ -203,7 +203,7 @@ const Download = () => {
                   </motion.div>
                 )}
 
-                <div className="flex gap-4">
+                <div className="flex gap-4 flex-wrap">
                   <Button
                     onClick={() => handleDownload('video')}
                     disabled={download.isLoading || !download.url.trim()}

@@ -138,7 +138,7 @@ async function tryDownloadWithFallbacks(
   for (const strategy of STRATEGIES) {
     logger.info(`🔄 Strategy: ${strategy.name}`);
     tasks.update(taskId, {
-      status: "queued",
+      status: "trying",
       message: `Trying ${strategy.name}...`,
     });
 

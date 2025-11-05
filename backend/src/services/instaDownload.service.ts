@@ -65,10 +65,7 @@ const STRATEGIES: Strategy[] = [
   },
 ];
 
-/**
- * Extract shortcode from Instagram URL
- * Supports: /p/, /reel/, /tv/, /reels/
- */
+
 function extractShortcode(url: string): string | null {
   const match = url.match(/instagram\.com\/(?:p|reel|tv|reels)\/([A-Za-z0-9_-]+)/i);
   if (match) {
@@ -174,8 +171,7 @@ async function tryDownloadWithFallbacks(
     }
 
     logger.warn(`❌ Failed with ${strategy.name}`);
-    
-    // Wait 5 seconds before trying next strategy (avoid rate limit)
+
     if (i < STRATEGIES.length - 1) {
       logger.info("⏳ Waiting 5s before next attempt...");
       await new Promise(resolve => setTimeout(resolve, 5000));
@@ -185,9 +181,7 @@ async function tryDownloadWithFallbacks(
   return false;
 }
 
-/**
- * Convert video to audio using FFmpeg
- */
+
 async function convertToAudio(videoPath: string, outDir: string): Promise<string> {
   const audioPath = path.join(outDir, `${path.parse(videoPath).name}.mp3`);
   
@@ -217,9 +211,7 @@ async function convertToAudio(videoPath: string, outDir: string): Promise<string
   });
 }
 
-/**
- * Main Instagram download task
- */
+
 export default async function instagramDownloadTask(
   taskId: string,
   url: string,

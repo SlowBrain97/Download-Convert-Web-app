@@ -1,4 +1,4 @@
-export type TaskStatus = 'queued' | 'processing' | 'completed' | 'error' | 'encourage' | 'ready';
+export type TaskStatus = 'queued' | 'processing' | 'completed' | 'error' | 'encourage' | 'ready' | 'trying';
 
 export interface TaskResult {
   downloadUrl?: string;
