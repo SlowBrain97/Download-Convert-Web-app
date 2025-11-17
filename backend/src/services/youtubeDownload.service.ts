@@ -100,7 +100,7 @@ async function runYtDlp(
       const match = text.match(/(\d{1,3}\.\d)%/);
       if (match) {
         const pct = Math.min(99, Math.floor(parseFloat(match[1])));
-        tasks.update(taskId, { progress: pct, message: `Downloading ${pct}%` });
+        tasks.update(taskId, { status: "processing",progress: pct, message: `Downloading ${pct}%` });
       }
 
       if (text.includes("Destination:")) {

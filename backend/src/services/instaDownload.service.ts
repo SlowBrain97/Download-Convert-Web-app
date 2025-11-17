@@ -116,7 +116,7 @@ async function runInstaloader(
       const pctMatch = text.match(/(\d{1,3})%/);
       if (pctMatch) {
         const pct = Math.min(95, parseInt(pctMatch[1]));
-        tasks.update(taskId, { progress: pct, message: `Downloading ${pct}%` });
+        tasks.update(taskId, { status: "processing",progress: pct, message: `Downloading ${pct}%` });
       }
     });
 
@@ -158,7 +158,7 @@ async function tryDownloadWithFallbacks(
     
     logger.info(`🔄 Strategy: ${strategy.name}`);
     tasks.update(taskId, {
-      status: "processing",
+      status: "trying",
       message: `Trying ${strategy.name}...`,
     });
 
