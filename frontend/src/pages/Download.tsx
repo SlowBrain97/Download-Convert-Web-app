@@ -162,7 +162,11 @@ const Download = () => {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       disabled={platform.disabled}
-                      onClick={() => setDownloadPlatform(platform.value as any)}
+                      onClick={() => platform.disabled ?  toast({
+                        title: "Platform Not Available",
+                        description: "This platform is not available yet.",
+                        variant: "destructive"
+                      }) : setDownloadPlatform(platform.value as any)}
                       className={`p-4 rounded-xl border transition-all duration-300 ${
                         isSelected 
                           ? 'border-primary bg-primary/20 shadow-glow' 
@@ -258,9 +262,9 @@ const Download = () => {
             >
               <ResultCard
                 title="Download Complete!"
-                description="Your video has been processed and is ready for download."
+                description="Your video has been processed and is ready for download. Your file will be removed after 5 minutes, please download it now."
                 downloadUrl={download.result.downloadUrl}
-                downloadName={download.result.filename}
+                downloadName={download.result.fileName}
               >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div className="space-y-2">
@@ -269,7 +273,7 @@ const Download = () => {
                   </div>
                   <div className="space-y-2">
                     <p><span className="font-medium">Quality:</span> {download.result.quality}</p>
-                    <p><span className="font-medium">Size:</span> {download.result.fileSize}</p>
+                    <p><span className="font-medium">Size:</span> {download.result.size}</p>
                   </div>
                 </div>
               </ResultCard>
