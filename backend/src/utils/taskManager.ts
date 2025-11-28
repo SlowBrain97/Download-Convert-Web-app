@@ -36,6 +36,9 @@ class TaskManager {
     if (em) em.emit('progress', next);
   }
 
+
+
+
   complete(id: string, result?: TaskResult) {
     this.update(id, { status: 'completed', progress: 100, result });
     const em = this.emitters.get(id);
