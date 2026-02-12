@@ -87,6 +87,9 @@ async function runYtDlp(
 
     const subprocess = spawn(YT_DLP, [
       ...args,
+      "--impersonate", "chrome",
+      "--no-cache-dir",
+      "--concurrent-fragments", "1",
       "--ffmpeg-location", ffmpegPath,
       "--output", outPath,
       "--no-playlist",
@@ -100,7 +103,7 @@ async function runYtDlp(
       const match = text.match(/(\d{1,3}\.\d)%/);
       if (match) {
         const pct = Math.min(99, Math.floor(parseFloat(match[1])));
-        tasks.update(taskId, { status: "processing",progress: pct, message: `Downloading ${pct}%` });
+        tasks.update(taskId, { status: "processing", progress: pct, message: `Downloading ${pct}%` });
       }
 
       if (text.includes("Destination:")) {
@@ -153,10 +156,10 @@ async function tryDownloadWithFallbacks(
     const success = await runYtDlp(url, args, outPath, taskId);
     if (success) {
       const size = fs.statSync(outPath).size;
-        if (size > 500) {
-          logger.info(`✅ Success with ${strategy.name}!`);
-          return true;
-        }
+      if (size > 500) {
+        logger.info(`✅ Success with ${strategy.name}!`);
+        return true;
+      }
     }
   }
   return false;
